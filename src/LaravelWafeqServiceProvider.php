@@ -4,7 +4,6 @@ namespace HWafeq\LaravelWafeq;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use HWafeq\LaravelWafeq\Commands\LaravelWafeqCommand;
 
 class LaravelWafeqServiceProvider extends PackageServiceProvider
 {
