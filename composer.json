@@ -1,22 +1,22 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "mohamedhabibwork/laravel-wafeq",
+    "description": "This is my package laravel-wafeq",
     "keywords": [
-        ":vendor_name",
+        "Mohamed Habib",
         "laravel",
-        ":package_slug"
+        "laravel-wafeq"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/mohamedhabibwork/laravel-wafeq",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Mohamed Habib",
+            "email": "mohamedhabibwork@gmail.com",
             "role": "Developer"
         }
     ],
     "require": {
-        "php": "^8.4",
+        "php": "^8.3",
         "spatie/laravel-package-tools": "^1.16",
         "illuminate/contracts": "^11.0||^12.0"
     },
@@ -35,13 +35,13 @@
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "HWafeq\\LaravelWafeq\\": "src/",
+            "HWafeq\\LaravelWafeq\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "HWafeq\\LaravelWafeq\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -63,10 +63,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "HWafeq\\LaravelWafeq\\LaravelWafeqServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "LaravelWafeq": "HWafeq\\LaravelWafeq\\Facades\\LaravelWafeq"
             }
         }
     },
