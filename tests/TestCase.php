@@ -2,9 +2,9 @@
 
 namespace HWafeq\LaravelWafeq\Tests;
 
+use HWafeq\LaravelWafeq\LaravelWafeqServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use HWafeq\LaravelWafeq\LaravelWafeqServiceProvider;
 
 class TestCase extends Orchestra
 {
