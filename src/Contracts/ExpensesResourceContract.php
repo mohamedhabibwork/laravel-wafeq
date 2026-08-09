@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface ExpensesResourceContract extends ResourceContract
+interface ExpensesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface ExpensesResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): ExpenseData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): ExpenseData;
+
+    public function retrieveModel(): ExpenseData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): ExpenseData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): ExpenseData;
+
+    public function destroyModel(): bool;
 }

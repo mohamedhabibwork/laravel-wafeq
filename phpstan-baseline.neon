@@ -5,3 +5,8 @@ parameters:
 			identifier: larastan.noEnvCallsOutsideOfConfig
 			count: 10
 			path: config/wafeq.php
+		-
+			message: '#^Trait HWafeq\\LaravelWafeq\\Concerns\\HasWafeqResource is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: src/Concerns/HasWafeqResource.php

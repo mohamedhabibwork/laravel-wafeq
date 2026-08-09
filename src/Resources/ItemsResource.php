@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithItemsModel;
 use HWafeq\LaravelWafeq\Contracts\ItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\ItemData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Items\ItemCreated;
+use HWafeq\LaravelWafeq\Events\Items\ItemDestroyed;
+use HWafeq\LaravelWafeq\Events\Items\ItemListed;
+use HWafeq\LaravelWafeq\Events\Items\ItemPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Items\ItemRetrieved;
+use HWafeq\LaravelWafeq\Events\Items\ItemUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class ItemsResource implements ItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithItemsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class ItemsResource implements ItemsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/items/', $query), ItemData::class);
+        $page = $this->toPaginated($this->http->get('/items/', $query), ItemData::class);
+
+        event(new ItemListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class ItemsResource implements ItemsResourceContract
      */
     public function create(array $payload): ItemData
     {
-        return $this->toData($this->postIdempotent($this->http, '/items/', $payload), ItemData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/items/', $payload), ItemData::class);
+
+        event(new ItemCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): ItemData
     {
-        return $this->toData($this->http->get("/items/{$id}/"), ItemData::class);
+        $data = $this->toData($this->http->get("/items/{$id}/"), ItemData::class);
+
+        event(new ItemRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class ItemsResource implements ItemsResourceContract
      */
     public function update(string $id, array $payload): ItemData
     {
-        return $this->toData($this->putIdempotent($this->http, "/items/{$id}/", $payload), ItemData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/items/{$id}/", $payload), ItemData::class);
+
+        event(new ItemUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class ItemsResource implements ItemsResourceContract
      */
     public function partialUpdate(string $id, array $payload): ItemData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/items/{$id}/", $payload), ItemData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/items/{$id}/", $payload), ItemData::class);
+
+        event(new ItemPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class ItemsResource implements ItemsResourceContract
         $response = $this->deleteIdempotent($this->http, "/items/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new ItemDestroyed(ItemData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

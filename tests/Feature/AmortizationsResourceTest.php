@@ -2,14 +2,20 @@
 
 use HWafeq\LaravelWafeq\Data\AmortizationData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationDestroyed;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationListed;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationRetrieved;
 use HWafeq\LaravelWafeq\Exceptions\NotFoundException;
 use HWafeq\LaravelWafeq\Exceptions\ValidationException;
 use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
 use HWafeq\LaravelWafeq\Tests\Pests\Concerns\FakesWafeq;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 
 uses(FakesWafeq::class);
 
 it('lists amortizations', function () {
+    Event::fake([AmortizationListed::class]);
     $this->fakeWafeqPage('/amortizations/', [
         ['id' => 'am_1', 'name' => 'Annual Insurance', 'status' => 'ACTIVE', 'totalAmount' => '12000.00', 'currency' => 'SAR'],
     ]);
@@ -19,9 +25,12 @@ it('lists amortizations', function () {
     expect($page)->toBeInstanceOf(PaginatedData::class)
         ->and($page->results[0])->toBeInstanceOf(AmortizationData::class)
         ->and($page->results[0]->name)->toBe('Annual Insurance');
+
+    Event::assertDispatched(AmortizationListed::class);
 });
 
 it('retrieves an amortization', function () {
+    Event::fake([AmortizationRetrieved::class]);
     $this->fakeWafeq('/amortizations/am_1/', [
         'id' => 'am_1',
         'name' => 'Annual Insurance',
@@ -37,12 +46,17 @@ it('retrieves an amortization', function () {
     expect($amort->id)->toBe('am_1')
         ->and($amort->startDate)->toBe('2024-01-01')
         ->and($amort->endDate)->toBe('2024-12-31');
+
+    Event::assertDispatched(AmortizationRetrieved::class);
 });
 
 it('destroys an amortization', function () {
+    Event::fake([AmortizationDestroyed::class]);
     $this->fakeWafeq('/amortizations/am_1/', '', 204);
 
     expect(LaravelWafeq::amortizations()->destroy('am_1'))->toBeTrue();
+
+    Event::assertDispatched(AmortizationDestroyed::class);
 });
 
 it('previews an amortization before creating', function () {
@@ -98,3 +112,22 @@ it('throws ValidationException on previewCreate', function () {
 
     LaravelWafeq::amortizations()->previewCreate(['name' => '']);
 })->throws(ValidationException::class);
+
+it('retrieves from a model via the InteractsWithModels trait', function () {
+    $this->fakeWafeq('/amortizations/m_1/', ['id' => 'm_1']);
+
+    $model = new class extends Model
+    {
+        protected $attributes = ['id' => 'm_1'];
+
+        public function getKey(): string
+        {
+            return 'm_1';
+        }
+    };
+
+    $result = LaravelWafeq::amortizations()->withModel($model)->retrieveModel();
+
+    expect($result)->toBeInstanceOf(AmortizationData::class)
+        ->and($result->id)->toBe('m_1');
+});

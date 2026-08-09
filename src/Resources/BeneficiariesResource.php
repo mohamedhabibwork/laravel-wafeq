@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithBeneficiariesModel;
 use HWafeq\LaravelWafeq\Contracts\BeneficiariesResourceContract;
 use HWafeq\LaravelWafeq\Data\BeneficiaryData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryCreated;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryDestroyed;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryListed;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryRetrieved;
+use HWafeq\LaravelWafeq\Events\Beneficiaries\BeneficiaryUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class BeneficiariesResource implements BeneficiariesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithBeneficiariesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class BeneficiariesResource implements BeneficiariesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/beneficiaries/', $query), BeneficiaryData::class);
+        $page = $this->toPaginated($this->http->get('/beneficiaries/', $query), BeneficiaryData::class);
+
+        event(new BeneficiaryListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class BeneficiariesResource implements BeneficiariesResourceContract
      */
     public function create(array $payload): BeneficiaryData
     {
-        return $this->toData($this->postIdempotent($this->http, '/beneficiaries/', $payload), BeneficiaryData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/beneficiaries/', $payload), BeneficiaryData::class);
+
+        event(new BeneficiaryCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): BeneficiaryData
     {
-        return $this->toData($this->http->get("/beneficiaries/{$id}/"), BeneficiaryData::class);
+        $data = $this->toData($this->http->get("/beneficiaries/{$id}/"), BeneficiaryData::class);
+
+        event(new BeneficiaryRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class BeneficiariesResource implements BeneficiariesResourceContract
      */
     public function update(string $id, array $payload): BeneficiaryData
     {
-        return $this->toData($this->putIdempotent($this->http, "/beneficiaries/{$id}/", $payload), BeneficiaryData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/beneficiaries/{$id}/", $payload), BeneficiaryData::class);
+
+        event(new BeneficiaryUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class BeneficiariesResource implements BeneficiariesResourceContract
      */
     public function partialUpdate(string $id, array $payload): BeneficiaryData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/beneficiaries/{$id}/", $payload), BeneficiaryData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/beneficiaries/{$id}/", $payload), BeneficiaryData::class);
+
+        event(new BeneficiaryPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class BeneficiariesResource implements BeneficiariesResourceContract
         $response = $this->deleteIdempotent($this->http, "/beneficiaries/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new BeneficiaryDestroyed(BeneficiaryData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

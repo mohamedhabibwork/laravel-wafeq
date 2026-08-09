@@ -3,10 +3,19 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithQuotesModel;
 use HWafeq\LaravelWafeq\Contracts\QuotesResourceContract;
 use HWafeq\LaravelWafeq\Data\InvoiceData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\QuoteData;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteCreated;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteDestroyed;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteDownloaded;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteListed;
+use HWafeq\LaravelWafeq\Events\Quotes\QuotePartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteRetrieved;
+use HWafeq\LaravelWafeq\Events\Quotes\QuoteUpdated;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 
@@ -18,6 +27,8 @@ use Illuminate\Http\Client\Response;
 class QuotesResource implements QuotesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithQuotesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -27,7 +38,11 @@ class QuotesResource implements QuotesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/quotes/', $query), QuoteData::class);
+        $page = $this->toPaginated($this->http->get('/quotes/', $query), QuoteData::class);
+
+        event(new QuoteListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -35,12 +50,20 @@ class QuotesResource implements QuotesResourceContract
      */
     public function create(array $payload): QuoteData
     {
-        return $this->toData($this->postIdempotent($this->http, '/quotes/', $payload), QuoteData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/quotes/', $payload), QuoteData::class);
+
+        event(new QuoteCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): QuoteData
     {
-        return $this->toData($this->http->get("/quotes/{$id}/"), QuoteData::class);
+        $data = $this->toData($this->http->get("/quotes/{$id}/"), QuoteData::class);
+
+        event(new QuoteRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -48,7 +71,11 @@ class QuotesResource implements QuotesResourceContract
      */
     public function update(string $id, array $payload): QuoteData
     {
-        return $this->toData($this->putIdempotent($this->http, "/quotes/{$id}/", $payload), QuoteData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/quotes/{$id}/", $payload), QuoteData::class);
+
+        event(new QuoteUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -56,7 +83,11 @@ class QuotesResource implements QuotesResourceContract
      */
     public function partialUpdate(string $id, array $payload): QuoteData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/quotes/{$id}/", $payload), QuoteData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/quotes/{$id}/", $payload), QuoteData::class);
+
+        event(new QuotePartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -64,13 +95,21 @@ class QuotesResource implements QuotesResourceContract
         $response = $this->deleteIdempotent($this->http, "/quotes/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new QuoteDestroyed(QuoteData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     public function download(string $id): Response
     {
         $response = $this->http->get("/quotes/{$id}/download/");
         $this->guardResponse($response);
+
+        event(new QuoteDownloaded(QuoteData::from(['id' => $id]), $id));
 
         return $response;
     }

@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface CreditNotesLineItemsResourceContract extends ResourceContract
+interface CreditNotesLineItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface CreditNotesLineItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): CreditNoteLineItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): CreditNoteLineItemData;
+
+    public function retrieveModel(): CreditNoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): CreditNoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): CreditNoteLineItemData;
+
+    public function destroyModel(): bool;
 }

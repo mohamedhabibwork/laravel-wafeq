@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface SimplifiedInvoicesResourceContract extends ResourceContract
+interface SimplifiedInvoicesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -44,4 +44,23 @@ interface SimplifiedInvoicesResourceContract extends ResourceContract
      * @param  array<string, mixed>  $payload
      */
     public function taxAuthorityReport(string $id, array $payload = []): Response;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): SimplifiedInvoiceData;
+
+    public function retrieveModel(): SimplifiedInvoiceData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): SimplifiedInvoiceData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): SimplifiedInvoiceData;
+
+    public function destroyModel(): bool;
 }

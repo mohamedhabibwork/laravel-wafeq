@@ -3,9 +3,12 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
 use HWafeq\LaravelWafeq\Contracts\JournalLineItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\JournalLineItemData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\JournalLineItems\JournalLineItemListed;
+use HWafeq\LaravelWafeq\Events\JournalLineItems\JournalLineItemRetrieved;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +19,7 @@ use Illuminate\Http\Client\PendingRequest;
 class JournalLineItemsResource implements JournalLineItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,11 +29,19 @@ class JournalLineItemsResource implements JournalLineItemsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/journal-line-items/', $query), JournalLineItemData::class);
+        $page = $this->toPaginated($this->http->get('/journal-line-items/', $query), JournalLineItemData::class);
+
+        event(new JournalLineItemListed($page, '', $query));
+
+        return $page;
     }
 
     public function retrieve(string $id): JournalLineItemData
     {
-        return $this->toData($this->http->get("/journal-line-items/{$id}/"), JournalLineItemData::class);
+        $data = $this->toData($this->http->get("/journal-line-items/{$id}/"), JournalLineItemData::class);
+
+        event(new JournalLineItemRetrieved($data, $id));
+
+        return $data;
     }
 }

@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithManualJournalsModel;
 use HWafeq\LaravelWafeq\Contracts\ManualJournalsResourceContract;
 use HWafeq\LaravelWafeq\Data\ManualJournalData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalCreated;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalDestroyed;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalListed;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalRetrieved;
+use HWafeq\LaravelWafeq\Events\ManualJournals\ManualJournalUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class ManualJournalsResource implements ManualJournalsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithManualJournalsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class ManualJournalsResource implements ManualJournalsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/manual-journals/', $query), ManualJournalData::class);
+        $page = $this->toPaginated($this->http->get('/manual-journals/', $query), ManualJournalData::class);
+
+        event(new ManualJournalListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class ManualJournalsResource implements ManualJournalsResourceContract
      */
     public function create(array $payload): ManualJournalData
     {
-        return $this->toData($this->postIdempotent($this->http, '/manual-journals/', $payload), ManualJournalData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/manual-journals/', $payload), ManualJournalData::class);
+
+        event(new ManualJournalCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): ManualJournalData
     {
-        return $this->toData($this->http->get("/manual-journals/{$id}/"), ManualJournalData::class);
+        $data = $this->toData($this->http->get("/manual-journals/{$id}/"), ManualJournalData::class);
+
+        event(new ManualJournalRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class ManualJournalsResource implements ManualJournalsResourceContract
      */
     public function update(string $id, array $payload): ManualJournalData
     {
-        return $this->toData($this->putIdempotent($this->http, "/manual-journals/{$id}/", $payload), ManualJournalData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/manual-journals/{$id}/", $payload), ManualJournalData::class);
+
+        event(new ManualJournalUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class ManualJournalsResource implements ManualJournalsResourceContract
      */
     public function partialUpdate(string $id, array $payload): ManualJournalData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/manual-journals/{$id}/", $payload), ManualJournalData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/manual-journals/{$id}/", $payload), ManualJournalData::class);
+
+        event(new ManualJournalPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class ManualJournalsResource implements ManualJournalsResourceContract
         $response = $this->deleteIdempotent($this->http, "/manual-journals/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new ManualJournalDestroyed(ManualJournalData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

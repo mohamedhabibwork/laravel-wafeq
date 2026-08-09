@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithRevenueRecognitionsModel;
 use HWafeq\LaravelWafeq\Contracts\RevenueRecognitionsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\RevenueRecognitionData;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionCreated;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionDestroyed;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionListed;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionRetrieved;
+use HWafeq\LaravelWafeq\Events\RevenueRecognitions\RevenueRecognitionUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithRevenueRecognitionsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/revenue-recognitions/', $query), RevenueRecognitionData::class);
+        $page = $this->toPaginated($this->http->get('/revenue-recognitions/', $query), RevenueRecognitionData::class);
+
+        event(new RevenueRecognitionListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
      */
     public function create(array $payload): RevenueRecognitionData
     {
-        return $this->toData($this->postIdempotent($this->http, '/revenue-recognitions/', $payload), RevenueRecognitionData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/revenue-recognitions/', $payload), RevenueRecognitionData::class);
+
+        event(new RevenueRecognitionCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): RevenueRecognitionData
     {
-        return $this->toData($this->http->get("/revenue-recognitions/{$id}/"), RevenueRecognitionData::class);
+        $data = $this->toData($this->http->get("/revenue-recognitions/{$id}/"), RevenueRecognitionData::class);
+
+        event(new RevenueRecognitionRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
      */
     public function update(string $id, array $payload): RevenueRecognitionData
     {
-        return $this->toData($this->putIdempotent($this->http, "/revenue-recognitions/{$id}/", $payload), RevenueRecognitionData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/revenue-recognitions/{$id}/", $payload), RevenueRecognitionData::class);
+
+        event(new RevenueRecognitionUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
      */
     public function partialUpdate(string $id, array $payload): RevenueRecognitionData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/revenue-recognitions/{$id}/", $payload), RevenueRecognitionData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/revenue-recognitions/{$id}/", $payload), RevenueRecognitionData::class);
+
+        event(new RevenueRecognitionPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,7 +92,13 @@ class RevenueRecognitionsResource implements RevenueRecognitionsResourceContract
         $response = $this->deleteIdempotent($this->http, "/revenue-recognitions/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new RevenueRecognitionDestroyed(RevenueRecognitionData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     /**

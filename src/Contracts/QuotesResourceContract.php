@@ -12,7 +12,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface QuotesResourceContract extends ResourceContract
+interface QuotesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -45,4 +45,23 @@ interface QuotesResourceContract extends ResourceContract
      * @param  array<string, mixed>  $payload
      */
     public function invoice(string $id, array $payload = []): InvoiceData;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): QuoteData;
+
+    public function retrieveModel(): QuoteData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): QuoteData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): QuoteData;
+
+    public function destroyModel(): bool;
 }

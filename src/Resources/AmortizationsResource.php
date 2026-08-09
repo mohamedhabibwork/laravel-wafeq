@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithAmortizationsModel;
 use HWafeq\LaravelWafeq\Contracts\AmortizationsResourceContract;
 use HWafeq\LaravelWafeq\Data\AmortizationData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationCreated;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationDestroyed;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationListed;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationRetrieved;
+use HWafeq\LaravelWafeq\Events\Amortizations\AmortizationUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class AmortizationsResource implements AmortizationsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithAmortizationsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class AmortizationsResource implements AmortizationsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/amortizations/', $query), AmortizationData::class);
+        $page = $this->toPaginated($this->http->get('/amortizations/', $query), AmortizationData::class);
+
+        event(new AmortizationListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class AmortizationsResource implements AmortizationsResourceContract
      */
     public function create(array $payload): AmortizationData
     {
-        return $this->toData($this->postIdempotent($this->http, '/amortizations/', $payload), AmortizationData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/amortizations/', $payload), AmortizationData::class);
+
+        event(new AmortizationCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): AmortizationData
     {
-        return $this->toData($this->http->get("/amortizations/{$id}/"), AmortizationData::class);
+        $data = $this->toData($this->http->get("/amortizations/{$id}/"), AmortizationData::class);
+
+        event(new AmortizationRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class AmortizationsResource implements AmortizationsResourceContract
      */
     public function update(string $id, array $payload): AmortizationData
     {
-        return $this->toData($this->putIdempotent($this->http, "/amortizations/{$id}/", $payload), AmortizationData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/amortizations/{$id}/", $payload), AmortizationData::class);
+
+        event(new AmortizationUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class AmortizationsResource implements AmortizationsResourceContract
      */
     public function partialUpdate(string $id, array $payload): AmortizationData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/amortizations/{$id}/", $payload), AmortizationData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/amortizations/{$id}/", $payload), AmortizationData::class);
+
+        event(new AmortizationPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,7 +92,13 @@ class AmortizationsResource implements AmortizationsResourceContract
         $response = $this->deleteIdempotent($this->http, "/amortizations/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new AmortizationDestroyed(AmortizationData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     /**

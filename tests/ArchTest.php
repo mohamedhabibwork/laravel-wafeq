@@ -26,6 +26,10 @@ arch('exceptions extend the base WafeqException')
     ->expect('HWafeq\LaravelWafeq\Exceptions')
     ->toExtend('HWafeq\LaravelWafeq\Exceptions\WafeqException');
 
+arch('events extend the WafeqEvent base')
+    ->expect('HWafeq\LaravelWafeq\Events')
+    ->toExtend('HWafeq\LaravelWafeq\Events\Concerns\WafeqEvent');
+
 arch('Client implements ClientContract')
     ->expect('HWafeq\LaravelWafeq\Client')
     ->toImplement('HWafeq\LaravelWafeq\Contracts\ClientContract');

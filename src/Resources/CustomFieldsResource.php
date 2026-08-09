@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithCustomFieldsModel;
 use HWafeq\LaravelWafeq\Contracts\CustomFieldsResourceContract;
 use HWafeq\LaravelWafeq\Data\CustomFieldData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldCreated;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldDestroyed;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldListed;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldRetrieved;
+use HWafeq\LaravelWafeq\Events\CustomFields\CustomFieldUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class CustomFieldsResource implements CustomFieldsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithCustomFieldsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class CustomFieldsResource implements CustomFieldsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/custom-fields/', $query), CustomFieldData::class);
+        $page = $this->toPaginated($this->http->get('/custom-fields/', $query), CustomFieldData::class);
+
+        event(new CustomFieldListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class CustomFieldsResource implements CustomFieldsResourceContract
      */
     public function create(array $payload): CustomFieldData
     {
-        return $this->toData($this->postIdempotent($this->http, '/custom-fields/', $payload), CustomFieldData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/custom-fields/', $payload), CustomFieldData::class);
+
+        event(new CustomFieldCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): CustomFieldData
     {
-        return $this->toData($this->http->get("/custom-fields/{$id}/"), CustomFieldData::class);
+        $data = $this->toData($this->http->get("/custom-fields/{$id}/"), CustomFieldData::class);
+
+        event(new CustomFieldRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class CustomFieldsResource implements CustomFieldsResourceContract
      */
     public function update(string $id, array $payload): CustomFieldData
     {
-        return $this->toData($this->putIdempotent($this->http, "/custom-fields/{$id}/", $payload), CustomFieldData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/custom-fields/{$id}/", $payload), CustomFieldData::class);
+
+        event(new CustomFieldUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class CustomFieldsResource implements CustomFieldsResourceContract
      */
     public function partialUpdate(string $id, array $payload): CustomFieldData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/custom-fields/{$id}/", $payload), CustomFieldData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/custom-fields/{$id}/", $payload), CustomFieldData::class);
+
+        event(new CustomFieldPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class CustomFieldsResource implements CustomFieldsResourceContract
         $response = $this->deleteIdempotent($this->http, "/custom-fields/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new CustomFieldDestroyed(CustomFieldData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

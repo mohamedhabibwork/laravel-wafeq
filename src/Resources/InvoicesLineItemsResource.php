@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithInvoicesLineItemsModel;
 use HWafeq\LaravelWafeq\Contracts\InvoicesLineItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\InvoiceLineItemData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemCreated;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemDestroyed;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemListed;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemRetrieved;
+use HWafeq\LaravelWafeq\Events\InvoicesLineItems\InvoiceLineItemUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithInvoicesLineItemsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/invoices/line-items/', $query), InvoiceLineItemData::class);
+        $page = $this->toPaginated($this->http->get('/invoices/line-items/', $query), InvoiceLineItemData::class);
+
+        event(new InvoiceLineItemListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
      */
     public function create(array $payload): InvoiceLineItemData
     {
-        return $this->toData($this->postIdempotent($this->http, '/invoices/line-items/', $payload), InvoiceLineItemData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/invoices/line-items/', $payload), InvoiceLineItemData::class);
+
+        event(new InvoiceLineItemCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): InvoiceLineItemData
     {
-        return $this->toData($this->http->get("/invoices/line-items/{$id}/"), InvoiceLineItemData::class);
+        $data = $this->toData($this->http->get("/invoices/line-items/{$id}/"), InvoiceLineItemData::class);
+
+        event(new InvoiceLineItemRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
      */
     public function update(string $id, array $payload): InvoiceLineItemData
     {
-        return $this->toData($this->putIdempotent($this->http, "/invoices/line-items/{$id}/", $payload), InvoiceLineItemData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/invoices/line-items/{$id}/", $payload), InvoiceLineItemData::class);
+
+        event(new InvoiceLineItemUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
      */
     public function partialUpdate(string $id, array $payload): InvoiceLineItemData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/invoices/line-items/{$id}/", $payload), InvoiceLineItemData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/invoices/line-items/{$id}/", $payload), InvoiceLineItemData::class);
+
+        event(new InvoiceLineItemPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class InvoicesLineItemsResource implements InvoicesLineItemsResourceContract
         $response = $this->deleteIdempotent($this->http, "/invoices/line-items/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new InvoiceLineItemDestroyed(InvoiceLineItemData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

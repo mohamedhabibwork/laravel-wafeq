@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface ApiInvoicesResourceContract extends ResourceContract
+interface ApiInvoicesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -50,4 +50,23 @@ interface ApiInvoicesResourceContract extends ResourceContract
      * @return array<string, mixed>
      */
     public function bulkSend(array $payload): array;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): ApiInvoiceData;
+
+    public function retrieveModel(): ApiInvoiceData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): ApiInvoiceData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): ApiInvoiceData;
+
+    public function destroyModel(): bool;
 }

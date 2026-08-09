@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\QuoteLineItemData;
  *
  * @see LaravelWafeq
  */
-interface QuotesLineItemsResourceContract extends ResourceContract
+interface QuotesLineItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface QuotesLineItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): QuoteLineItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): QuoteLineItemData;
+
+    public function retrieveModel(): QuoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): QuoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): QuoteLineItemData;
+
+    public function destroyModel(): bool;
 }

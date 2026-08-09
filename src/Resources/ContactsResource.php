@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithContactsModel;
 use HWafeq\LaravelWafeq\Contracts\ContactsResourceContract;
 use HWafeq\LaravelWafeq\Data\ContactData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactCreated;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactDestroyed;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactListed;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactRetrieved;
+use HWafeq\LaravelWafeq\Events\Contacts\ContactUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class ContactsResource implements ContactsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithContactsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class ContactsResource implements ContactsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/contacts/', $query), ContactData::class);
+        $page = $this->toPaginated($this->http->get('/contacts/', $query), ContactData::class);
+
+        event(new ContactListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class ContactsResource implements ContactsResourceContract
      */
     public function create(array $payload): ContactData
     {
-        return $this->toData($this->postIdempotent($this->http, '/contacts/', $payload), ContactData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/contacts/', $payload), ContactData::class);
+
+        event(new ContactCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): ContactData
     {
-        return $this->toData($this->http->get("/contacts/{$id}/"), ContactData::class);
+        $data = $this->toData($this->http->get("/contacts/{$id}/"), ContactData::class);
+
+        event(new ContactRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class ContactsResource implements ContactsResourceContract
      */
     public function update(string $id, array $payload): ContactData
     {
-        return $this->toData($this->putIdempotent($this->http, "/contacts/{$id}/", $payload), ContactData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/contacts/{$id}/", $payload), ContactData::class);
+
+        event(new ContactUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class ContactsResource implements ContactsResourceContract
      */
     public function partialUpdate(string $id, array $payload): ContactData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/contacts/{$id}/", $payload), ContactData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/contacts/{$id}/", $payload), ContactData::class);
+
+        event(new ContactPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class ContactsResource implements ContactsResourceContract
         $response = $this->deleteIdempotent($this->http, "/contacts/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new ContactDestroyed(ContactData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

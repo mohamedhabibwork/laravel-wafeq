@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithUnitsOfMeasureModel;
 use HWafeq\LaravelWafeq\Contracts\UnitsOfMeasureResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\UnitOfMeasureData;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasureCreated;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasureDestroyed;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasureListed;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasurePartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasureRetrieved;
+use HWafeq\LaravelWafeq\Events\UnitsOfMeasure\UnitOfMeasureUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithUnitsOfMeasureModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/units-of-measure/', $query), UnitOfMeasureData::class);
+        $page = $this->toPaginated($this->http->get('/units-of-measure/', $query), UnitOfMeasureData::class);
+
+        event(new UnitOfMeasureListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
      */
     public function create(array $payload): UnitOfMeasureData
     {
-        return $this->toData($this->postIdempotent($this->http, '/units-of-measure/', $payload), UnitOfMeasureData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/units-of-measure/', $payload), UnitOfMeasureData::class);
+
+        event(new UnitOfMeasureCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): UnitOfMeasureData
     {
-        return $this->toData($this->http->get("/units-of-measure/{$id}/"), UnitOfMeasureData::class);
+        $data = $this->toData($this->http->get("/units-of-measure/{$id}/"), UnitOfMeasureData::class);
+
+        event(new UnitOfMeasureRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
      */
     public function update(string $id, array $payload): UnitOfMeasureData
     {
-        return $this->toData($this->putIdempotent($this->http, "/units-of-measure/{$id}/", $payload), UnitOfMeasureData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/units-of-measure/{$id}/", $payload), UnitOfMeasureData::class);
+
+        event(new UnitOfMeasureUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
      */
     public function partialUpdate(string $id, array $payload): UnitOfMeasureData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/units-of-measure/{$id}/", $payload), UnitOfMeasureData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/units-of-measure/{$id}/", $payload), UnitOfMeasureData::class);
+
+        event(new UnitOfMeasurePartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class UnitsOfMeasureResource implements UnitsOfMeasureResourceContract
         $response = $this->deleteIdempotent($this->http, "/units-of-measure/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new UnitOfMeasureDestroyed(UnitOfMeasureData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

@@ -3,6 +3,7 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
 use HWafeq\LaravelWafeq\Contracts\ReportsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\ReportRowData;
@@ -16,6 +17,7 @@ use Illuminate\Http\Client\PendingRequest;
 class ReportsResource implements ReportsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 

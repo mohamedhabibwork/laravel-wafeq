@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PayslipPayItemData;
  *
  * @see LaravelWafeq
  */
-interface PayslipsPayItemsResourceContract extends ResourceContract
+interface PayslipsPayItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface PayslipsPayItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): PayslipPayItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): PayslipPayItemData;
+
+    public function retrieveModel(): PayslipPayItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): PayslipPayItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): PayslipPayItemData;
+
+    public function destroyModel(): bool;
 }

@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface PayslipsResourceContract extends ResourceContract
+interface PayslipsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -39,4 +39,23 @@ interface PayslipsResourceContract extends ResourceContract
     public function destroy(string $id): bool;
 
     public function download(string $id): Response;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): PayslipData;
+
+    public function retrieveModel(): PayslipData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): PayslipData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): PayslipData;
+
+    public function destroyModel(): bool;
 }

@@ -3,9 +3,18 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithPayslipsModel;
 use HWafeq\LaravelWafeq\Contracts\PayslipsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\PayslipData;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipCreated;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipDestroyed;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipDownloaded;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipListed;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipRetrieved;
+use HWafeq\LaravelWafeq\Events\Payslips\PayslipUpdated;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 
@@ -17,6 +26,8 @@ use Illuminate\Http\Client\Response;
 class PayslipsResource implements PayslipsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithPayslipsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -26,7 +37,11 @@ class PayslipsResource implements PayslipsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/payslips/', $query), PayslipData::class);
+        $page = $this->toPaginated($this->http->get('/payslips/', $query), PayslipData::class);
+
+        event(new PayslipListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -34,12 +49,20 @@ class PayslipsResource implements PayslipsResourceContract
      */
     public function create(array $payload): PayslipData
     {
-        return $this->toData($this->postIdempotent($this->http, '/payslips/', $payload), PayslipData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/payslips/', $payload), PayslipData::class);
+
+        event(new PayslipCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): PayslipData
     {
-        return $this->toData($this->http->get("/payslips/{$id}/"), PayslipData::class);
+        $data = $this->toData($this->http->get("/payslips/{$id}/"), PayslipData::class);
+
+        event(new PayslipRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -47,7 +70,11 @@ class PayslipsResource implements PayslipsResourceContract
      */
     public function update(string $id, array $payload): PayslipData
     {
-        return $this->toData($this->putIdempotent($this->http, "/payslips/{$id}/", $payload), PayslipData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/payslips/{$id}/", $payload), PayslipData::class);
+
+        event(new PayslipUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -55,7 +82,11 @@ class PayslipsResource implements PayslipsResourceContract
      */
     public function partialUpdate(string $id, array $payload): PayslipData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/payslips/{$id}/", $payload), PayslipData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/payslips/{$id}/", $payload), PayslipData::class);
+
+        event(new PayslipPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -63,13 +94,21 @@ class PayslipsResource implements PayslipsResourceContract
         $response = $this->deleteIdempotent($this->http, "/payslips/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new PayslipDestroyed(PayslipData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     public function download(string $id): Response
     {
         $response = $this->http->get("/payslips/{$id}/download/");
         $this->guardResponse($response);
+
+        event(new PayslipDownloaded(PayslipData::from(['id' => $id]), $id));
 
         return $response;
     }

@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface ContactsResourceContract extends ResourceContract
+interface ContactsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface ContactsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): ContactData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): ContactData;
+
+    public function retrieveModel(): ContactData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): ContactData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): ContactData;
+
+    public function destroyModel(): bool;
 }

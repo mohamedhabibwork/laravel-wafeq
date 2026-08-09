@@ -3,8 +3,10 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
 use HWafeq\LaravelWafeq\Contracts\OrganizationResourceContract;
 use HWafeq\LaravelWafeq\Data\OrganizationData;
+use HWafeq\LaravelWafeq\Events\Organization\OrganizationRetrieved;
 use HWafeq\LaravelWafeq\Exceptions\WafeqException;
 use Illuminate\Http\Client\PendingRequest;
 
@@ -19,6 +21,7 @@ use Illuminate\Http\Client\PendingRequest;
 class OrganizationResource implements OrganizationResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -32,6 +35,10 @@ class OrganizationResource implements OrganizationResourceContract
         $response = $this->http->get('/organization/');
         $this->guardResponse($response);
 
-        return OrganizationData::from($response->json());
+        $data = OrganizationData::from($response->json());
+
+        event(new OrganizationRetrieved($data, ''));
+
+        return $data;
     }
 }

@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithCreditNotesLineItemsModel;
 use HWafeq\LaravelWafeq\Contracts\CreditNotesLineItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\CreditNoteLineItemData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemCreated;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemDestroyed;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemListed;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemRetrieved;
+use HWafeq\LaravelWafeq\Events\CreditNotesLineItems\CreditNoteLineItemUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithCreditNotesLineItemsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContra
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/credit-notes/line-items/', $query), CreditNoteLineItemData::class);
+        $page = $this->toPaginated($this->http->get('/credit-notes/line-items/', $query), CreditNoteLineItemData::class);
+
+        event(new CreditNoteLineItemListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContra
      */
     public function create(array $payload): CreditNoteLineItemData
     {
-        return $this->toData($this->postIdempotent($this->http, '/credit-notes/line-items/', $payload), CreditNoteLineItemData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/credit-notes/line-items/', $payload), CreditNoteLineItemData::class);
+
+        event(new CreditNoteLineItemCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): CreditNoteLineItemData
     {
-        return $this->toData($this->http->get("/credit-notes/line-items/{$id}/"), CreditNoteLineItemData::class);
+        $data = $this->toData($this->http->get("/credit-notes/line-items/{$id}/"), CreditNoteLineItemData::class);
+
+        event(new CreditNoteLineItemRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContra
      */
     public function update(string $id, array $payload): CreditNoteLineItemData
     {
-        return $this->toData($this->putIdempotent($this->http, "/credit-notes/line-items/{$id}/", $payload), CreditNoteLineItemData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/credit-notes/line-items/{$id}/", $payload), CreditNoteLineItemData::class);
+
+        event(new CreditNoteLineItemUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContra
      */
     public function partialUpdate(string $id, array $payload): CreditNoteLineItemData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/credit-notes/line-items/{$id}/", $payload), CreditNoteLineItemData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/credit-notes/line-items/{$id}/", $payload), CreditNoteLineItemData::class);
+
+        event(new CreditNoteLineItemPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class CreditNotesLineItemsResource implements CreditNotesLineItemsResourceContra
         $response = $this->deleteIdempotent($this->http, "/credit-notes/line-items/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new CreditNoteLineItemDestroyed(CreditNoteLineItemData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

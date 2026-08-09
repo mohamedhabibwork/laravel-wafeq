@@ -1,15 +1,18 @@
 <?php
 
 use HWafeq\LaravelWafeq\Data\OrganizationData;
+use HWafeq\LaravelWafeq\Events\Organization\OrganizationRetrieved;
 use HWafeq\LaravelWafeq\Exceptions\AuthenticationException;
 use HWafeq\LaravelWafeq\Exceptions\NotFoundException;
 use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
 use HWafeq\LaravelWafeq\Tests\Pests\Concerns\FakesWafeq;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 
 uses(FakesWafeq::class);
 
 it('retrieves the current organization', function () {
+    Event::fake([OrganizationRetrieved::class]);
     $this->fakeWafeq('/organization/', [
         'id' => 'org_1',
         'name' => 'Acme Co.',
@@ -28,9 +31,12 @@ it('retrieves the current organization', function () {
         ->and($org->legalName)->toBe('Acme Co. WLL')
         ->and($org->currency)->toBe('SAR')
         ->and($org->country)->toBe('SA');
+
+    Event::assertDispatched(OrganizationRetrieved::class);
 });
 
 it('does not attach an idempotency header on retrieve', function () {
+    Event::fake([OrganizationRetrieved::class]);
     $this->fakeWafeq('/organization/', ['id' => 'org_1', 'name' => 'Acme']);
 
     LaravelWafeq::organization()->retrieve();
@@ -38,6 +44,8 @@ it('does not attach an idempotency header on retrieve', function () {
     Http::assertSent(function ($request) {
         return $request->method() === 'GET' && ! $request->hasHeader('X-Wafeq-Idempotency-Key');
     });
+
+    Event::assertDispatched(OrganizationRetrieved::class);
 });
 
 it('throws AuthenticationException on 401', function () {

@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface PaymentsResourceContract extends ResourceContract
+interface PaymentsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -39,4 +39,23 @@ interface PaymentsResourceContract extends ResourceContract
     public function destroy(string $id): bool;
 
     public function download(string $id): Response;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): PaymentData;
+
+    public function retrieveModel(): PaymentData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): PaymentData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): PaymentData;
+
+    public function destroyModel(): bool;
 }

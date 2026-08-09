@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface InvoicesLineItemsResourceContract extends ResourceContract
+interface InvoicesLineItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface InvoicesLineItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): InvoiceLineItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): InvoiceLineItemData;
+
+    public function retrieveModel(): InvoiceLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): InvoiceLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): InvoiceLineItemData;
+
+    public function destroyModel(): bool;
 }

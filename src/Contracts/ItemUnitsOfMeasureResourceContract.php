@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface ItemUnitsOfMeasureResourceContract extends ResourceContract
+interface ItemUnitsOfMeasureResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface ItemUnitsOfMeasureResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): ItemUnitOfMeasureData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): ItemUnitOfMeasureData;
+
+    public function retrieveModel(): ItemUnitOfMeasureData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): ItemUnitOfMeasureData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): ItemUnitOfMeasureData;
+
+    public function destroyModel(): bool;
 }

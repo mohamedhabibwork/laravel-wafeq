@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\SimplifiedInvoiceLineItemData;
  *
  * @see LaravelWafeq
  */
-interface SimplifiedInvoicesLineItemsResourceContract extends ResourceContract
+interface SimplifiedInvoicesLineItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface SimplifiedInvoicesLineItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): SimplifiedInvoiceLineItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): SimplifiedInvoiceLineItemData;
+
+    public function retrieveModel(): SimplifiedInvoiceLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): SimplifiedInvoiceLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): SimplifiedInvoiceLineItemData;
+
+    public function destroyModel(): bool;
 }

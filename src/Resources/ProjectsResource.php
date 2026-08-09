@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithProjectsModel;
 use HWafeq\LaravelWafeq\Contracts\ProjectsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\ProjectData;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectCreated;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectDestroyed;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectListed;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectRetrieved;
+use HWafeq\LaravelWafeq\Events\Projects\ProjectUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class ProjectsResource implements ProjectsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithProjectsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class ProjectsResource implements ProjectsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/projects/', $query), ProjectData::class);
+        $page = $this->toPaginated($this->http->get('/projects/', $query), ProjectData::class);
+
+        event(new ProjectListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class ProjectsResource implements ProjectsResourceContract
      */
     public function create(array $payload): ProjectData
     {
-        return $this->toData($this->postIdempotent($this->http, '/projects/', $payload), ProjectData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/projects/', $payload), ProjectData::class);
+
+        event(new ProjectCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): ProjectData
     {
-        return $this->toData($this->http->get("/projects/{$id}/"), ProjectData::class);
+        $data = $this->toData($this->http->get("/projects/{$id}/"), ProjectData::class);
+
+        event(new ProjectRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class ProjectsResource implements ProjectsResourceContract
      */
     public function update(string $id, array $payload): ProjectData
     {
-        return $this->toData($this->putIdempotent($this->http, "/projects/{$id}/", $payload), ProjectData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/projects/{$id}/", $payload), ProjectData::class);
+
+        event(new ProjectUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class ProjectsResource implements ProjectsResourceContract
      */
     public function partialUpdate(string $id, array $payload): ProjectData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/projects/{$id}/", $payload), ProjectData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/projects/{$id}/", $payload), ProjectData::class);
+
+        event(new ProjectPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class ProjectsResource implements ProjectsResourceContract
         $response = $this->deleteIdempotent($this->http, "/projects/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new ProjectDestroyed(ProjectData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

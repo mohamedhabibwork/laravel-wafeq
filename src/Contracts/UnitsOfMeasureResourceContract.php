@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\UnitOfMeasureData;
  *
  * @see LaravelWafeq
  */
-interface UnitsOfMeasureResourceContract extends ResourceContract
+interface UnitsOfMeasureResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface UnitsOfMeasureResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): UnitOfMeasureData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): UnitOfMeasureData;
+
+    public function retrieveModel(): UnitOfMeasureData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): UnitOfMeasureData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): UnitOfMeasureData;
+
+    public function destroyModel(): bool;
 }

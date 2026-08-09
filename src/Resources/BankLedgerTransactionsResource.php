@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithBankLedgerTransactionsModel;
 use HWafeq\LaravelWafeq\Contracts\BankLedgerTransactionsResourceContract;
 use HWafeq\LaravelWafeq\Data\BankLedgerTransactionData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionCreated;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionDestroyed;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionListed;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionRetrieved;
+use HWafeq\LaravelWafeq\Events\BankLedgerTransactions\BankLedgerTransactionUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithBankLedgerTransactionsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceCo
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/bank-ledger/', $query), BankLedgerTransactionData::class);
+        $page = $this->toPaginated($this->http->get('/bank-ledger/', $query), BankLedgerTransactionData::class);
+
+        event(new BankLedgerTransactionListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceCo
      */
     public function create(array $payload): BankLedgerTransactionData
     {
-        return $this->toData($this->postIdempotent($this->http, '/bank-ledger/', $payload), BankLedgerTransactionData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/bank-ledger/', $payload), BankLedgerTransactionData::class);
+
+        event(new BankLedgerTransactionCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): BankLedgerTransactionData
     {
-        return $this->toData($this->http->get("/bank-ledger/{$id}/"), BankLedgerTransactionData::class);
+        $data = $this->toData($this->http->get("/bank-ledger/{$id}/"), BankLedgerTransactionData::class);
+
+        event(new BankLedgerTransactionRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceCo
      */
     public function update(string $id, array $payload): BankLedgerTransactionData
     {
-        return $this->toData($this->putIdempotent($this->http, "/bank-ledger/{$id}/", $payload), BankLedgerTransactionData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/bank-ledger/{$id}/", $payload), BankLedgerTransactionData::class);
+
+        event(new BankLedgerTransactionUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceCo
      */
     public function partialUpdate(string $id, array $payload): BankLedgerTransactionData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/bank-ledger/{$id}/", $payload), BankLedgerTransactionData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/bank-ledger/{$id}/", $payload), BankLedgerTransactionData::class);
+
+        event(new BankLedgerTransactionPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class BankLedgerTransactionsResource implements BankLedgerTransactionsResourceCo
         $response = $this->deleteIdempotent($this->http, "/bank-ledger/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new BankLedgerTransactionDestroyed(BankLedgerTransactionData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

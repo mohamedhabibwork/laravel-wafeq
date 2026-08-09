@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithPayslipsPayItemsModel;
 use HWafeq\LaravelWafeq\Contracts\PayslipsPayItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\PayslipPayItemData;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemCreated;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemDestroyed;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemListed;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemRetrieved;
+use HWafeq\LaravelWafeq\Events\PayslipsPayItems\PayslipPayItemUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithPayslipsPayItemsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/payslips/pay-items/', $query), PayslipPayItemData::class);
+        $page = $this->toPaginated($this->http->get('/payslips/pay-items/', $query), PayslipPayItemData::class);
+
+        event(new PayslipPayItemListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
      */
     public function create(array $payload): PayslipPayItemData
     {
-        return $this->toData($this->postIdempotent($this->http, '/payslips/pay-items/', $payload), PayslipPayItemData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/payslips/pay-items/', $payload), PayslipPayItemData::class);
+
+        event(new PayslipPayItemCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): PayslipPayItemData
     {
-        return $this->toData($this->http->get("/payslips/pay-items/{$id}/"), PayslipPayItemData::class);
+        $data = $this->toData($this->http->get("/payslips/pay-items/{$id}/"), PayslipPayItemData::class);
+
+        event(new PayslipPayItemRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
      */
     public function update(string $id, array $payload): PayslipPayItemData
     {
-        return $this->toData($this->putIdempotent($this->http, "/payslips/pay-items/{$id}/", $payload), PayslipPayItemData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/payslips/pay-items/{$id}/", $payload), PayslipPayItemData::class);
+
+        event(new PayslipPayItemUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
      */
     public function partialUpdate(string $id, array $payload): PayslipPayItemData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/payslips/pay-items/{$id}/", $payload), PayslipPayItemData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/payslips/pay-items/{$id}/", $payload), PayslipPayItemData::class);
+
+        event(new PayslipPayItemPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class PayslipsPayItemsResource implements PayslipsPayItemsResourceContract
         $response = $this->deleteIdempotent($this->http, "/payslips/pay-items/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new PayslipPayItemDestroyed(PayslipPayItemData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

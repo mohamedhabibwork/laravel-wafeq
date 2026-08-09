@@ -3,9 +3,18 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithApiInvoicesModel;
 use HWafeq\LaravelWafeq\Contracts\ApiInvoicesResourceContract;
 use HWafeq\LaravelWafeq\Data\ApiInvoiceData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceCreated;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceDestroyed;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceDownloaded;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceListed;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoicePartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceRetrieved;
+use HWafeq\LaravelWafeq\Events\ApiInvoices\ApiInvoiceUpdated;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 
@@ -17,6 +26,8 @@ use Illuminate\Http\Client\Response;
 class ApiInvoicesResource implements ApiInvoicesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithApiInvoicesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -26,7 +37,11 @@ class ApiInvoicesResource implements ApiInvoicesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/api-invoices/', $query), ApiInvoiceData::class);
+        $page = $this->toPaginated($this->http->get('/api-invoices/', $query), ApiInvoiceData::class);
+
+        event(new ApiInvoiceListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -34,12 +49,20 @@ class ApiInvoicesResource implements ApiInvoicesResourceContract
      */
     public function create(array $payload): ApiInvoiceData
     {
-        return $this->toData($this->postIdempotent($this->http, '/api-invoices/', $payload), ApiInvoiceData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/api-invoices/', $payload), ApiInvoiceData::class);
+
+        event(new ApiInvoiceCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): ApiInvoiceData
     {
-        return $this->toData($this->http->get("/api-invoices/{$id}/"), ApiInvoiceData::class);
+        $data = $this->toData($this->http->get("/api-invoices/{$id}/"), ApiInvoiceData::class);
+
+        event(new ApiInvoiceRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -47,7 +70,11 @@ class ApiInvoicesResource implements ApiInvoicesResourceContract
      */
     public function update(string $id, array $payload): ApiInvoiceData
     {
-        return $this->toData($this->putIdempotent($this->http, "/api-invoices/{$id}/", $payload), ApiInvoiceData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/api-invoices/{$id}/", $payload), ApiInvoiceData::class);
+
+        event(new ApiInvoiceUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -55,7 +82,11 @@ class ApiInvoicesResource implements ApiInvoicesResourceContract
      */
     public function partialUpdate(string $id, array $payload): ApiInvoiceData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/api-invoices/{$id}/", $payload), ApiInvoiceData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/api-invoices/{$id}/", $payload), ApiInvoiceData::class);
+
+        event(new ApiInvoicePartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -63,13 +94,21 @@ class ApiInvoicesResource implements ApiInvoicesResourceContract
         $response = $this->deleteIdempotent($this->http, "/api-invoices/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new ApiInvoiceDestroyed(ApiInvoiceData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     public function download(string $id): Response
     {
         $response = $this->http->get("/api-invoices/{$id}/download/");
         $this->guardResponse($response);
+
+        event(new ApiInvoiceDownloaded(ApiInvoiceData::from(['id' => $id]), $id));
 
         return $response;
     }

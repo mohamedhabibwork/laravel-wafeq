@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface BeneficiariesResourceContract extends ResourceContract
+interface BeneficiariesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface BeneficiariesResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): BeneficiaryData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): BeneficiaryData;
+
+    public function retrieveModel(): BeneficiaryData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): BeneficiaryData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): BeneficiaryData;
+
+    public function destroyModel(): bool;
 }

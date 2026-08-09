@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithQuotesLineItemsModel;
 use HWafeq\LaravelWafeq\Contracts\QuotesLineItemsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\QuoteLineItemData;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemCreated;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemDestroyed;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemListed;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemRetrieved;
+use HWafeq\LaravelWafeq\Events\QuotesLineItems\QuoteLineItemUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class QuotesLineItemsResource implements QuotesLineItemsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithQuotesLineItemsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class QuotesLineItemsResource implements QuotesLineItemsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/quotes/line-items/', $query), QuoteLineItemData::class);
+        $page = $this->toPaginated($this->http->get('/quotes/line-items/', $query), QuoteLineItemData::class);
+
+        event(new QuoteLineItemListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class QuotesLineItemsResource implements QuotesLineItemsResourceContract
      */
     public function create(array $payload): QuoteLineItemData
     {
-        return $this->toData($this->postIdempotent($this->http, '/quotes/line-items/', $payload), QuoteLineItemData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/quotes/line-items/', $payload), QuoteLineItemData::class);
+
+        event(new QuoteLineItemCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): QuoteLineItemData
     {
-        return $this->toData($this->http->get("/quotes/line-items/{$id}/"), QuoteLineItemData::class);
+        $data = $this->toData($this->http->get("/quotes/line-items/{$id}/"), QuoteLineItemData::class);
+
+        event(new QuoteLineItemRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class QuotesLineItemsResource implements QuotesLineItemsResourceContract
      */
     public function update(string $id, array $payload): QuoteLineItemData
     {
-        return $this->toData($this->putIdempotent($this->http, "/quotes/line-items/{$id}/", $payload), QuoteLineItemData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/quotes/line-items/{$id}/", $payload), QuoteLineItemData::class);
+
+        event(new QuoteLineItemUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class QuotesLineItemsResource implements QuotesLineItemsResourceContract
      */
     public function partialUpdate(string $id, array $payload): QuoteLineItemData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/quotes/line-items/{$id}/", $payload), QuoteLineItemData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/quotes/line-items/{$id}/", $payload), QuoteLineItemData::class);
+
+        event(new QuoteLineItemPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class QuotesLineItemsResource implements QuotesLineItemsResourceContract
         $response = $this->deleteIdempotent($this->http, "/quotes/line-items/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new QuoteLineItemDestroyed(QuoteLineItemData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

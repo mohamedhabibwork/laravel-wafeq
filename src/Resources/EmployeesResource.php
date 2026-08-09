@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithEmployeesModel;
 use HWafeq\LaravelWafeq\Contracts\EmployeesResourceContract;
 use HWafeq\LaravelWafeq\Data\EmployeeData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeeCreated;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeeDestroyed;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeeListed;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeePartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeeRetrieved;
+use HWafeq\LaravelWafeq\Events\Employees\EmployeeUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class EmployeesResource implements EmployeesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithEmployeesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class EmployeesResource implements EmployeesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/employees/', $query), EmployeeData::class);
+        $page = $this->toPaginated($this->http->get('/employees/', $query), EmployeeData::class);
+
+        event(new EmployeeListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class EmployeesResource implements EmployeesResourceContract
      */
     public function create(array $payload): EmployeeData
     {
-        return $this->toData($this->postIdempotent($this->http, '/employees/', $payload), EmployeeData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/employees/', $payload), EmployeeData::class);
+
+        event(new EmployeeCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): EmployeeData
     {
-        return $this->toData($this->http->get("/employees/{$id}/"), EmployeeData::class);
+        $data = $this->toData($this->http->get("/employees/{$id}/"), EmployeeData::class);
+
+        event(new EmployeeRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class EmployeesResource implements EmployeesResourceContract
      */
     public function update(string $id, array $payload): EmployeeData
     {
-        return $this->toData($this->putIdempotent($this->http, "/employees/{$id}/", $payload), EmployeeData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/employees/{$id}/", $payload), EmployeeData::class);
+
+        event(new EmployeeUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class EmployeesResource implements EmployeesResourceContract
      */
     public function partialUpdate(string $id, array $payload): EmployeeData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/employees/{$id}/", $payload), EmployeeData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/employees/{$id}/", $payload), EmployeeData::class);
+
+        event(new EmployeePartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class EmployeesResource implements EmployeesResourceContract
         $response = $this->deleteIdempotent($this->http, "/employees/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new EmployeeDestroyed(EmployeeData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

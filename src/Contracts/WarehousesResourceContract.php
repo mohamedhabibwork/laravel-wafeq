@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\WarehouseData;
  *
  * @see LaravelWafeq
  */
-interface WarehousesResourceContract extends ResourceContract
+interface WarehousesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface WarehousesResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): WarehouseData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): WarehouseData;
+
+    public function retrieveModel(): WarehouseData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): WarehouseData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): WarehouseData;
+
+    public function destroyModel(): bool;
 }

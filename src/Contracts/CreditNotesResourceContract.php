@@ -11,7 +11,7 @@ use Illuminate\Http\Client\Response;
  *
  * @see LaravelWafeq
  */
-interface CreditNotesResourceContract extends ResourceContract
+interface CreditNotesResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -44,4 +44,23 @@ interface CreditNotesResourceContract extends ResourceContract
      * @param  array<string, mixed>  $payload
      */
     public function taxAuthorityReport(string $id, array $payload = []): Response;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): CreditNoteData;
+
+    public function retrieveModel(): CreditNoteData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): CreditNoteData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): CreditNoteData;
+
+    public function destroyModel(): bool;
 }

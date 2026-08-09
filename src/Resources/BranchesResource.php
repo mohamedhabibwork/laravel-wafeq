@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithBranchesModel;
 use HWafeq\LaravelWafeq\Contracts\BranchesResourceContract;
 use HWafeq\LaravelWafeq\Data\BranchData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\Branches\BranchCreated;
+use HWafeq\LaravelWafeq\Events\Branches\BranchDestroyed;
+use HWafeq\LaravelWafeq\Events\Branches\BranchListed;
+use HWafeq\LaravelWafeq\Events\Branches\BranchPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\Branches\BranchRetrieved;
+use HWafeq\LaravelWafeq\Events\Branches\BranchUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class BranchesResource implements BranchesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithBranchesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class BranchesResource implements BranchesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/branches/', $query), BranchData::class);
+        $page = $this->toPaginated($this->http->get('/branches/', $query), BranchData::class);
+
+        event(new BranchListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class BranchesResource implements BranchesResourceContract
      */
     public function create(array $payload): BranchData
     {
-        return $this->toData($this->postIdempotent($this->http, '/branches/', $payload), BranchData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/branches/', $payload), BranchData::class);
+
+        event(new BranchCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): BranchData
     {
-        return $this->toData($this->http->get("/branches/{$id}/"), BranchData::class);
+        $data = $this->toData($this->http->get("/branches/{$id}/"), BranchData::class);
+
+        event(new BranchRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class BranchesResource implements BranchesResourceContract
      */
     public function update(string $id, array $payload): BranchData
     {
-        return $this->toData($this->putIdempotent($this->http, "/branches/{$id}/", $payload), BranchData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/branches/{$id}/", $payload), BranchData::class);
+
+        event(new BranchUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class BranchesResource implements BranchesResourceContract
      */
     public function partialUpdate(string $id, array $payload): BranchData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/branches/{$id}/", $payload), BranchData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/branches/{$id}/", $payload), BranchData::class);
+
+        event(new BranchPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class BranchesResource implements BranchesResourceContract
         $response = $this->deleteIdempotent($this->http, "/branches/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new BranchDestroyed(BranchData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\ProjectData;
  *
  * @see LaravelWafeq
  */
-interface ProjectsResourceContract extends ResourceContract
+interface ProjectsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface ProjectsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): ProjectData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): ProjectData;
+
+    public function retrieveModel(): ProjectData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): ProjectData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): ProjectData;
+
+    public function destroyModel(): bool;
 }

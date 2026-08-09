@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface BankStatementTransactionsResourceContract extends ResourceContract
+interface BankStatementTransactionsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface BankStatementTransactionsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): BankStatementTransactionData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): BankStatementTransactionData;
+
+    public function retrieveModel(): BankStatementTransactionData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): BankStatementTransactionData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): BankStatementTransactionData;
+
+    public function destroyModel(): bool;
 }

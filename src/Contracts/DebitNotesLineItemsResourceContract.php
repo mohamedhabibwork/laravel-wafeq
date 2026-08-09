@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface DebitNotesLineItemsResourceContract extends ResourceContract
+interface DebitNotesLineItemsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface DebitNotesLineItemsResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): DebitNoteLineItemData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): DebitNoteLineItemData;
+
+    public function retrieveModel(): DebitNoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): DebitNoteLineItemData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): DebitNoteLineItemData;
+
+    public function destroyModel(): bool;
 }

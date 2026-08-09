@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface AmortizationsResourceContract extends ResourceContract
+interface AmortizationsResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -51,4 +51,38 @@ interface AmortizationsResourceContract extends ResourceContract
      * @param  array<string, mixed>  $payload
      */
     public function previewEndEarly(string $id, array $payload = []): AmortizationData;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): AmortizationData;
+
+    public function retrieveModel(): AmortizationData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): AmortizationData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): AmortizationData;
+
+    public function destroyModel(): bool;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function endEarlyModel(array $payload = []): AmortizationData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function previewCreateFromModel(array $payload = []): AmortizationData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function previewEndEarlyModel(array $payload = []): AmortizationData;
 }

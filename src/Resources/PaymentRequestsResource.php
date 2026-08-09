@@ -3,9 +3,17 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithPaymentRequestsModel;
 use HWafeq\LaravelWafeq\Contracts\PaymentRequestsResourceContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Data\PaymentRequestData;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestCreated;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestDestroyed;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestListed;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestPartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestRetrieved;
+use HWafeq\LaravelWafeq\Events\PaymentRequests\PaymentRequestUpdated;
 use Illuminate\Http\Client\PendingRequest;
 
 /**
@@ -16,6 +24,8 @@ use Illuminate\Http\Client\PendingRequest;
 class PaymentRequestsResource implements PaymentRequestsResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithPaymentRequestsModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -25,7 +35,11 @@ class PaymentRequestsResource implements PaymentRequestsResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/payment-requests/', $query), PaymentRequestData::class);
+        $page = $this->toPaginated($this->http->get('/payment-requests/', $query), PaymentRequestData::class);
+
+        event(new PaymentRequestListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -33,12 +47,20 @@ class PaymentRequestsResource implements PaymentRequestsResourceContract
      */
     public function create(array $payload): PaymentRequestData
     {
-        return $this->toData($this->postIdempotent($this->http, '/payment-requests/', $payload), PaymentRequestData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/payment-requests/', $payload), PaymentRequestData::class);
+
+        event(new PaymentRequestCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): PaymentRequestData
     {
-        return $this->toData($this->http->get("/payment-requests/{$id}/"), PaymentRequestData::class);
+        $data = $this->toData($this->http->get("/payment-requests/{$id}/"), PaymentRequestData::class);
+
+        event(new PaymentRequestRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -46,7 +68,11 @@ class PaymentRequestsResource implements PaymentRequestsResourceContract
      */
     public function update(string $id, array $payload): PaymentRequestData
     {
-        return $this->toData($this->putIdempotent($this->http, "/payment-requests/{$id}/", $payload), PaymentRequestData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/payment-requests/{$id}/", $payload), PaymentRequestData::class);
+
+        event(new PaymentRequestUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -54,7 +80,11 @@ class PaymentRequestsResource implements PaymentRequestsResourceContract
      */
     public function partialUpdate(string $id, array $payload): PaymentRequestData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/payment-requests/{$id}/", $payload), PaymentRequestData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/payment-requests/{$id}/", $payload), PaymentRequestData::class);
+
+        event(new PaymentRequestPartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -62,6 +92,12 @@ class PaymentRequestsResource implements PaymentRequestsResourceContract
         $response = $this->deleteIdempotent($this->http, "/payment-requests/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new PaymentRequestDestroyed(PaymentRequestData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 }

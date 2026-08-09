@@ -10,7 +10,7 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
  *
  * @see LaravelWafeq
  */
-interface CostCentersResourceContract extends ResourceContract
+interface CostCentersResourceContract extends WafeqResourceWithModelMethods
 {
     /**
      * @param  array<string, mixed>  $query
@@ -36,4 +36,23 @@ interface CostCentersResourceContract extends ResourceContract
     public function partialUpdate(string $id, array $payload): CostCenterData;
 
     public function destroy(string $id): bool;
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    public function createFromModel(array $extra = []): CostCenterData;
+
+    public function retrieveModel(): CostCenterData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function updateModel(array $payload): CostCenterData;
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function partialUpdateModel(array $payload): CostCenterData;
+
+    public function destroyModel(): bool;
 }

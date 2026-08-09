@@ -3,9 +3,18 @@
 namespace HWafeq\LaravelWafeq\Resources;
 
 use HWafeq\LaravelWafeq\Concerns\HandlesResponses;
+use HWafeq\LaravelWafeq\Concerns\HoldsWafeqModel;
+use HWafeq\LaravelWafeq\Concerns\InteractsWithCreditNotesModel;
 use HWafeq\LaravelWafeq\Contracts\CreditNotesResourceContract;
 use HWafeq\LaravelWafeq\Data\CreditNoteData;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteCreated;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteDestroyed;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteDownloaded;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteListed;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNotePartiallyUpdated;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteRetrieved;
+use HWafeq\LaravelWafeq\Events\CreditNotes\CreditNoteUpdated;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 
@@ -17,6 +26,8 @@ use Illuminate\Http\Client\Response;
 class CreditNotesResource implements CreditNotesResourceContract
 {
     use HandlesResponses;
+    use HoldsWafeqModel;
+    use InteractsWithCreditNotesModel;
 
     public function __construct(protected readonly PendingRequest $http) {}
 
@@ -26,7 +37,11 @@ class CreditNotesResource implements CreditNotesResourceContract
      */
     public function list(array $query = []): PaginatedData
     {
-        return $this->toPaginated($this->http->get('/credit-notes/', $query), CreditNoteData::class);
+        $page = $this->toPaginated($this->http->get('/credit-notes/', $query), CreditNoteData::class);
+
+        event(new CreditNoteListed($page, '', $query));
+
+        return $page;
     }
 
     /**
@@ -34,12 +49,20 @@ class CreditNotesResource implements CreditNotesResourceContract
      */
     public function create(array $payload): CreditNoteData
     {
-        return $this->toData($this->postIdempotent($this->http, '/credit-notes/', $payload), CreditNoteData::class);
+        $data = $this->toData($this->postIdempotent($this->http, '/credit-notes/', $payload), CreditNoteData::class);
+
+        event(new CreditNoteCreated($data, $data->id, $payload));
+
+        return $data;
     }
 
     public function retrieve(string $id): CreditNoteData
     {
-        return $this->toData($this->http->get("/credit-notes/{$id}/"), CreditNoteData::class);
+        $data = $this->toData($this->http->get("/credit-notes/{$id}/"), CreditNoteData::class);
+
+        event(new CreditNoteRetrieved($data, $id));
+
+        return $data;
     }
 
     /**
@@ -47,7 +70,11 @@ class CreditNotesResource implements CreditNotesResourceContract
      */
     public function update(string $id, array $payload): CreditNoteData
     {
-        return $this->toData($this->putIdempotent($this->http, "/credit-notes/{$id}/", $payload), CreditNoteData::class);
+        $data = $this->toData($this->putIdempotent($this->http, "/credit-notes/{$id}/", $payload), CreditNoteData::class);
+
+        event(new CreditNoteUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     /**
@@ -55,7 +82,11 @@ class CreditNotesResource implements CreditNotesResourceContract
      */
     public function partialUpdate(string $id, array $payload): CreditNoteData
     {
-        return $this->toData($this->patchIdempotent($this->http, "/credit-notes/{$id}/", $payload), CreditNoteData::class);
+        $data = $this->toData($this->patchIdempotent($this->http, "/credit-notes/{$id}/", $payload), CreditNoteData::class);
+
+        event(new CreditNotePartiallyUpdated($data, $id, $payload));
+
+        return $data;
     }
 
     public function destroy(string $id): bool
@@ -63,13 +94,21 @@ class CreditNotesResource implements CreditNotesResourceContract
         $response = $this->deleteIdempotent($this->http, "/credit-notes/{$id}/");
         $this->guardResponse($response);
 
-        return $response->successful();
+        $ok = $response->successful();
+
+        if ($ok) {
+            event(new CreditNoteDestroyed(CreditNoteData::from(['id' => $id]), $id));
+        }
+
+        return $ok;
     }
 
     public function download(string $id): Response
     {
         $response = $this->http->get("/credit-notes/{$id}/download/");
         $this->guardResponse($response);
+
+        event(new CreditNoteDownloaded(CreditNoteData::from(['id' => $id]), $id));
 
         return $response;
     }
