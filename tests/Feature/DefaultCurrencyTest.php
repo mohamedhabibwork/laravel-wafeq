@@ -1,6 +1,5 @@
 <?php
 
-use HWafeq\LaravelWafeq\Casts\WithCurrencyCast;
 use HWafeq\LaravelWafeq\Contracts\ClientContract;
 use HWafeq\LaravelWafeq\Enums\Currency;
 use HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData;
@@ -81,18 +80,18 @@ it('the cast resolves a known wire string to the matching Currency enum', functi
     expect($result->currency)->toBe(Currency::USD);
 });
 
-it('the cast falls back to the configured default when the wire value is null', function () {
+it('the post-construction fillCurrencyDefaults fills a null wire value with the configured default', function () {
     config()->set('wafeq.currency', 'AED');
 
-    // The wire value MUST be present (even as null) for Spatie Data to
-    // run the cast. Sending `currency: null` triggers the
-    // #[WithCurrency] -> WithCurrencyCast pipeline, which fills in the
-    // configured default. Omitting the key entirely leaves the
-    // property untouched (which is the framework default).
+    // Simulate what HandlesResponses::toData() does after from():
+    // construct the DTO, then call fillCurrencyDefaults() on it.
     $result = CurrencyAwareData::from([
         'id' => 'demo_1',
         'currency' => null,
     ]);
+
+    $client = app(ClientContract::class);
+    $result = $client->fillCurrencyDefaults($result);
 
     expect($result->id)->toBe('demo_1')
         ->and($result->currency)->toBe(Currency::AED);

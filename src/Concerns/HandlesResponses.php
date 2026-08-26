@@ -2,6 +2,8 @@
 
 namespace HWafeq\LaravelWafeq\Concerns;
 
+use HWafeq\LaravelWafeq\Client;
+use HWafeq\LaravelWafeq\Contracts\ClientContract;
 use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Exceptions\AuthenticationException;
 use HWafeq\LaravelWafeq\Exceptions\NotFoundException;
@@ -37,7 +39,23 @@ trait HandlesResponses
     {
         $this->guardResponse($response);
 
-        return $dataClass::from($response->json());
+        $dto = $dataClass::from($response->json());
+
+        // Fill in `#[WithCurrency]`-tagged null properties with the
+        // package's configured default currency so callers always
+        // see a typed `Currency` value rather than `null`.
+        try {
+            /** @var ClientContract|null $client */
+            $client = app(ClientContract::class);
+            if ($client instanceof Client) {
+                /** @var T $dto */
+                $dto = $client->fillCurrencyDefaults($dto);
+            }
+        } catch (\Throwable) {
+            // Never let a missing default-currency helper break a response.
+        }
+
+        return $dto;
     }
 
     /**

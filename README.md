@@ -282,6 +282,38 @@ $status = LaravelWafeq::paymentRequests()->retrieve('abc')->status;
 $status === PaymentRequestStatus::Processed->value;   // 'PROCESSED'
 ```
 
+### Default currency
+
+Set `WAFEQ_CURRENCY` (or `config/wafeq.php` → `currency`) to your organisation's base currency. When the value is `null`, the package fetches the base currency from `GET /organization/` and caches it for the rest of the request lifecycle.
+
+```dotenv
+WAFEQ_CURRENCY=AED
+```
+
+Tag DTO properties with `#[WithCurrency]` to auto-fill them from the default when the wire payload is missing or unknown:
+
+```php
+use HWafeq\LaravelWafeq\Attributes\WithCurrency;
+use HWafeq\LaravelWafeq\Enums\Currency;
+
+class InvoiceData extends Data
+{
+    public function __construct(
+        public string $id = '',
+        #[WithCurrency]
+        public ?Currency $currency = null,
+        // ...
+    ) {}
+}
+```
+
+A wire response shaped `{ "id": "inv_123" }` now hydrates with `Currency::AED` automatically. A response shaped `{ "id": "inv_123", "currency": "USD" }` becomes `Currency::USD`. The fill runs once after every response hydration (via `HandlesResponses::toData()`) and is a no-op when the property already has a value.
+
+```php
+$client = app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class);
+$default = $client->defaultCurrency();   // returns the resolved Currency (or null)
+```
+
 ### Idempotency
 
 Every mutating call (`create`, `update`, `partialUpdate`, `destroy`, plus resource-specific extras like `markAsPosted`, `invoice`, `bill`, `taxAuthorityReport`, `bulkSend`, `previewCreate`, etc.) automatically attaches a UUID `X-Wafeq-Idempotency-Key` header. Retries are safe — see [Idempotency](./docs/idempotency.md).

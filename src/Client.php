@@ -53,6 +53,7 @@
 
 namespace HWafeq\LaravelWafeq;
 
+use HWafeq\LaravelWafeq\Concerns\FillsCurrencyDefaults;
 use HWafeq\LaravelWafeq\Contracts\AccountsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\AmortizationsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\ApiCreditNotesResourceContract;
@@ -151,6 +152,8 @@ use HWafeq\LaravelWafeq\Resources\WarehousesResource;
  */
 class Client implements ClientContract
 {
+    use FillsCurrencyDefaults;
+
     /**
      * Cached `defaultCurrency()` lookup so we only hit the organisation
      * endpoint once per client instance.
