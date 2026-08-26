@@ -7,7 +7,7 @@
 
 A typed Laravel client for the [Wafeq](https://wafeq.com) accounting API. Every endpoint is exposed as a resource behind a single `LaravelWafeq` facade, returning [`spatie/laravel-data`](https://github.com/spatie/laravel-data) DTOs so you get autocompletion, immutability and validation on every response.
 
-> **44 resources. 19 typed enums. 11 shared DTOs. 396 tests. Zero magic.**
+> **44 resources. 121 FormRequests. 19 typed enums. 11 shared DTOs. 797 tests. Zero magic.**
 > [Installation](#installation) · [Usage](#usage) · [Features](#features) · [Resources](#resources) · [Documentation](./docs/index.md)
 
 ---
@@ -21,6 +21,7 @@ A typed Laravel client for the [Wafeq](https://wafeq.com) accounting API. Every 
 - **Spatie Data name mapping** — DTO properties are camelCase but Wafeq's wire format is snake_case; the package transparently maps between them via Spatie Data's `SnakeCaseMapper`.
 - **Localized fields handled** — `{en, ar}` Wafeq payloads hydrate into a dedicated `DualLangData` value object that implements Spatie Data's `Castable` so bare strings, arrays, or existing instances all work.
 - **Typed enum casts** — every enum (`Currency`, `BillStatus`, …) implements `Spatie\LaravelData\Casts\Castable` via `SafeEnumCastable`, so unknown wire values fall back to `null` instead of throwing.
+- **FormRequest layer out of the box** — every mutating endpoint (`create` / `update` / `partialUpdate` / `markAs*` / `taxAuthorityReport` / `bulkSend` / `invoice` / `bill` / `preview*` / `endEarly*`) ships a typed `FormRequest` under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md) that wires Laravel validation directly to the matching `spatie/laravel-data` DTO. Validate → `->toDto()` → hand off to the resource.
 - **Eloquent bridge** — pass any `Model` into the `*Model()` overloads (or mix `HasWafeqResource` in and call `$customer->wafeq()->retrieve()`) and the package resolves the Wafeq id and builds the payload for you.
 - **First-class test helpers** — `FakesWafeq` trait + `WafeqFake` helper stub every endpoint without touching the network.
 - **Typed events** — every successful resource call dispatches a `WafeqEvent` subclass you can listen to for syncing, notifications, audit logs, etc.
@@ -122,6 +123,36 @@ $bill = LaravelWafeq::purchaseOrders()->bill('po_123');
 LaravelWafeq::expenses()->markAsDraft('exp_1');   // POSTED → DRAFT
 LaravelWafeq::expenses()->markAsPosted('exp_1');  // DRAFT → POSTED
 ```
+
+### Validated payloads with FormRequests
+
+Every mutating endpoint ships a typed FormRequest that derives its rules straight from `wafeq-docs/<resource>_<action>.md`. Drop one into a controller and Laravel takes care of validation, attribute names, and the typed DTO hand-off:
+
+```php
+use HWafeq\LaravelWafeq\Data\ExpenseData;
+use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
+use HWafeq\LaravelWafeq\Requests\Expenses\CreateExpenseRequest;
+
+class ExpenseController
+{
+    public function store(CreateExpenseRequest $request)
+    {
+        /** @var ExpenseData $expense */
+        $expense = LaravelWafeq::expenses()->create($request->toDto()->toArray());
+
+        return response()->json($expense, 201);
+    }
+}
+```
+
+Every FormRequest exposes:
+
+- `rules()` — Laravel validation rules derived from the matching OpenAPI schema (required fields, `string` / `numeric` / `date_format:Y-m-d` / `in:v1,v2,...` etc.; server-managed `readOnly` fields are excluded).
+- `attributes()` — human-friendly keys for nicer validation error messages.
+- `dto(): class-string<Data>` — the matching `spatie/laravel-data` DTO.
+- `toDto(): Data` — materialises the DTO from the validated payload in one call.
+
+The full catalogue (121 FormRequests across every endpoint that takes a body — `create`, `update`, `partialUpdate`, plus special actions like `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `bill`, `invoice`, `previewCreate`, `endEarly`, `previewEndEarly`) lives under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). All extend [`HWafeq\LaravelWafeq\Requests\WafeqFormRequest`](./docs/requests.md#wafeqformrequest-base-class), which provides the `dto()` / `toDto()` plumbing.
 
 ### Nested resources
 
@@ -319,6 +350,65 @@ $default = $client->defaultCurrency();   // returns the resolved Currency (or nu
 Every mutating call (`create`, `update`, `partialUpdate`, `destroy`, plus resource-specific extras like `markAsPosted`, `invoice`, `bill`, `taxAuthorityReport`, `bulkSend`, `previewCreate`, etc.) automatically attaches a UUID `X-Wafeq-Idempotency-Key` header. Retries are safe — see [Idempotency](./docs/idempotency.md).
 
 The header name is configurable via the `idempotency_header` config key.
+
+### FormRequest layer
+
+Every endpoint that accepts a request body ships a typed Laravel FormRequest under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). The validation rules are derived directly from the matching `wafeq-docs/<resource>_<action>.md` OpenAPI schema, so the package and the docs stay in lock-step:
+
+| Endpoint family | FormRequests |
+|-----------------|--------------|
+| `*_create.md`  | `Create<Resource>Request` (121 of them — one per resource) |
+| `*_update.md`  | `Update<Resource>Request` |
+| `*_partial_update.md` | `PartialUpdate<Resource>Request` (every field becomes `sometimes` + `nullable`) |
+| Special actions | `CreateMarkAsDraftExpenseRequest`, `CreateMarkAsPostedExpenseRequest`, `CreateInvoiceTaxAuthorityReportRequest`, `CreateApiInvoiceBulkSendRequest`, `CreateQuoteInvoiceRequest`, `CreatePurchaseOrderBillRequest`, `CreateAmortizationPreviewRequest`, `CreateAmortizationEndEarlyRequest`, `CreateRevenueRecognitionPreviewRequest`, … |
+
+All 121 requests extend a single base class:
+
+```php
+namespace HWafeq\LaravelWafeq\Requests;
+
+abstract class WafeqFormRequest extends \Illuminate\Foundation\Http\FormRequest
+{
+    public function authorize(): bool { return true; }
+
+    /** @return array<string, array<int, mixed>> */
+    abstract public function rules(): array;
+
+    /** @return class-string<\Spatie\LaravelData\Data> */
+    abstract public function dto(): string;
+
+    public function toDto(): \Spatie\LaravelData\Data
+    {
+        /** @var class-string<\Spatie\LaravelData\Data> $dto */
+        $dto = $this->dto();
+
+        return $dto::from($this->validated());
+    }
+}
+```
+
+#### JSON Schema → Laravel rules
+
+The mapping rules are consistent across every FormRequest (see [`requests.md`](./docs/requests.md#json-schema--laravel-rules-mapping) for the full table):
+
+| OpenAPI schema                                      | Laravel rule                              |
+|-----------------------------------------------------|-------------------------------------------|
+| `{"type": "string", "maxLength": 255}`              | `['nullable', 'string', 'max:255']`       |
+| `{"type": "number", "format": "double"}`            | `['required', 'numeric']` (or `nullable`)  |
+| `{"type": "string", "format": "date"}`              | `'date_format:Y-m-d'`                      |
+| `{"type": "string", "format": "date-time"}`         | `'date_format:Y-m-d\TH:i:sP'`              |
+| `{"type": "array", "items": {"type": "string"}}`    | `['sometimes', 'array']` + `['KEY.*', 'string']` |
+| `$ref` to `CurrencyEnum` / `ClassificationEnum`     | read the enum under `src/Enums/` to derive `in:v1,v2,...` |
+| `{"readOnly": true}`                                | EXCLUDE (server-managed only)             |
+| `default: "X"`, field optional                      | `['sometimes', ...]`                      |
+| `partial_update.md` body                            | every field becomes `['sometimes', 'nullable', ...]` |
+| Bodyless endpoint (`mark_as_*`, `tax_authority_report_*`, `bulk_send_*`, `bill_create`, `invoice_create`, `preview_*`, `end_early_*`) | `rules()` returns `[]`; `dto()` still wired |
+
+#### Wire-format caveats
+
+- **snake_case** on input, camelCase on the DTO — the package's `SnakeCaseMapper` handles the bidirectional translation, so you can pass either form to `toDto()`.
+- **Dual-language fields** (branches / warehouses `name`, `city`, `district`, `address`): wire format `{en: required, ar: nullable}`. The matching FormRequest validates `parent.array` + `name.en` `required` + `name.ar` `nullable`; the array is then hydrated into `DualLangData` by the DTO's cast.
+- **Bodyless endpoints** ship an empty `rules()` array but still implement `dto()` so `toDto()->toArray()` always returns a usable payload.
 
 ---
 
