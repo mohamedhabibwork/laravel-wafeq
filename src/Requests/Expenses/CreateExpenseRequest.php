@@ -139,12 +139,4 @@ class CreateExpenseRequest extends WafeqFormRequest
     {
         return ExpenseData::class;
     }
-
-    /**
-     * Convenience accessor — returns a fully-hydrated {@see ExpenseData}.
-     */
-    public function toDto(): Data
-    {
-        return parent::toDto();
-    }
 }

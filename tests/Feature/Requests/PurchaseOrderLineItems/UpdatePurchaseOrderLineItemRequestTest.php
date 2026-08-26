@@ -1,0 +1,51 @@
+<?php
+
+declare(strict_types=1);
+
+use HWafeq\LaravelWafeq\Data\PurchaseOrderLineItemData;
+use HWafeq\LaravelWafeq\Requests\PurchaseOrderLineItems\UpdatePurchaseOrderLineItemRequest;
+use Illuminate\Routing\Redirector;
+use Illuminate\Support\Facades\Validator;
+
+it('validates a fully-populated purchase order line item update payload', function () {
+    $payload = [
+        'description' => 'Item B',
+        'quantity' => '3.00',
+        'unit_amount' => '75.50',
+        'account' => 'acc_2',
+        'item' => 'item_2',
+        'cost_center' => 'cc_finance',
+        'tax_rate' => 'tax_zero',
+        'discount' => '10.00',
+        'order' => 2,
+        'custom_fields' => ['cf_x' => 'y'],
+    ];
+
+    $request = UpdatePurchaseOrderLineItemRequest::create('/purchase-orders/po_1/line-items/li_1/', 'PUT', $payload);
+    $request->setContainer($this->app);
+    $request->setRedirector($this->app->make(Redirector::class));
+
+    expect($request->rules())->toBeArray()
+        ->and($request->authorize())->toBeTrue()
+        ->and($request->dto())->toBe(PurchaseOrderLineItemData::class);
+
+    $validator = Validator::make($payload, $request->rules());
+    expect($validator->fails())->toBeFalse();
+
+    $request->merge($payload);
+    $request->validateResolved();
+    $dto = $request->toDto();
+    expect($dto)->toBeInstanceOf(PurchaseOrderLineItemData::class);
+});
+
+it('rejects an update payload missing required fields', function () {
+    $request = UpdatePurchaseOrderLineItemRequest::create('/purchase-orders/po_1/line-items/li_1/', 'PUT', []);
+    $request->setContainer($this->app);
+    $request->setRedirector($this->app->make(Redirector::class));
+
+    $validator = Validator::make([], $request->rules());
+    expect($validator->fails())->toBeTrue()
+        ->and($validator->errors()->has('description'))->toBeTrue()
+        ->and($validator->errors()->has('quantity'))->toBeTrue()
+        ->and($validator->errors()->has('unit_amount'))->toBeTrue();
+});

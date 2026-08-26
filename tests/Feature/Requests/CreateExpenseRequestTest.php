@@ -3,8 +3,7 @@
 declare(strict_types=1);
 
 use HWafeq\LaravelWafeq\Data\ExpenseData;
-use HWafeq\LaravelWafeq\Requests\Expenses\CreateExpenseRequest;
-use Illuminate\Routing\Redirector;
+use HWafeq\LaravelWafeq\Requests\Expenses\CreateExpenseRequest;use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\Validator;
 
 it('validates a fully-populated expense payload', function () {
