@@ -3,7 +3,7 @@ parameters:
 		-
 			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
 			identifier: larastan.noEnvCallsOutsideOfConfig
-			count: 10
+			count: 11
 			path: config/wafeq.php
 		-
 			message: '#^Trait HWafeq\\LaravelWafeq\\Concerns\\HasWafeqResource is used zero times and is not analysed\.$#'

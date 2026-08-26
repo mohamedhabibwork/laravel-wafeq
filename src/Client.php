@@ -65,6 +65,7 @@ use HWafeq\LaravelWafeq\Contracts\BillsLineItemsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\BillsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\BranchesResourceContract;
 use HWafeq\LaravelWafeq\Contracts\ClientContract;
+use HWafeq\LaravelWafeq\Enums\Currency;
 use HWafeq\LaravelWafeq\Contracts\ContactsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\CostCentersResourceContract;
 use HWafeq\LaravelWafeq\Contracts\CreditNotesLineItemsResourceContract;
@@ -150,11 +151,64 @@ use HWafeq\LaravelWafeq\Resources\WarehousesResource;
  */
 class Client implements ClientContract
 {
+    /**
+     * Cached `defaultCurrency()` lookup so we only hit the organisation
+     * endpoint once per client instance.
+     */
+    private ?Currency $resolvedDefaultCurrency = null;
+
+    private bool $defaultCurrencyResolved = false;
+
     public function __construct(private readonly Connector $connector) {}
 
     public function connector(): Connector
     {
         return $this->connector;
+    }
+
+    public function defaultCurrency(): ?Currency
+    {
+        if ($this->defaultCurrencyResolved) {
+            return $this->resolvedDefaultCurrency;
+        }
+
+        $this->defaultCurrencyResolved = true;
+
+        // 1. Honour an explicit `WAFEQ_CURRENCY` env / config override first.
+        $configured = $this->connector->config()['currency'] ?? null;
+
+        if (is_string($configured) && $configured !== '') {
+            $enum = Currency::tryFrom($configured);
+            if ($enum instanceof Currency) {
+                return $this->resolvedDefaultCurrency = $enum;
+            }
+        }
+
+        // 2. Fall back to the organisation's `financial_settings.base_currency`.
+        // We hit the endpoint directly (via the connector's PendingRequest)
+        // rather than going through OrganizationResource because the full
+        // OrganizationData DTO eagerly hydrates every nested entity, which
+        // can blow up on partial / older payloads. For currency we only
+        // need a single field.
+        try {
+            $response = $this->connector->make()->get('/organization/');
+
+            if ($response->successful()) {
+                $base = $response->json('financial_settings.base_currency');
+
+                if (is_string($base) && $base !== '') {
+                    $enum = Currency::tryFrom($base);
+                    if ($enum instanceof Currency) {
+                        return $this->resolvedDefaultCurrency = $enum;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Network / auth failures shouldn't take down a whole call —
+            // the cast leaves the property as `null` and callers can decide.
+        }
+
+        return $this->resolvedDefaultCurrency = null;
     }
 
     public function organization(): OrganizationResourceContract

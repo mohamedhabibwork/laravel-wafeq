@@ -63,4 +63,22 @@ return [
 
     'idempotency_header' => env('WAFEQ_IDEMPOTENCY_HEADER', 'X-Wafeq-Idempotency-Key'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default currency
+    |--------------------------------------------------------------------------
+    |
+    | ISO-4217 currency code the package should fall back to whenever a DTO
+    | property typed `?Currency` (or tagged with #[WithCurrency]) hydrates
+    | from a null wire value. Set this to your organisation's base currency
+    | and the package will silently fill it in for you.
+    |
+    | When `null`, the package will fetch the base currency from the
+    | authenticated organisation's financial_settings on the first call
+    | that needs it and cache it for the rest of the request lifecycle.
+    |
+    */
+
+    'currency' => env('WAFEQ_CURRENCY'),
+
 ];

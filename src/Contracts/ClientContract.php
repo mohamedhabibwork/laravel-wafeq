@@ -60,6 +60,20 @@ namespace HWafeq\LaravelWafeq\Contracts;
  */
 interface ClientContract
 {
+    public function connector(): \HWafeq\LaravelWafeq\Connector;
+
+    /**
+     * Resolve the configured default currency for this Wafeq organisation.
+     *
+     * Reads `currency` from the package config first. When the configured
+     * value is `null` (or a non-existent ISO-4217 case), the package will
+     * fetch the organisation's `financial_settings.base_currency` via
+     * `GET /organization/` and cache it for the lifetime of the client.
+     *
+     * Returns `null` only when neither source yields a currency.
+     */
+    public function defaultCurrency(): ?\HWafeq\LaravelWafeq\Enums\Currency;
+
     public function organization(): OrganizationResourceContract;
 
     public function accounts(): AccountsResourceContract;
