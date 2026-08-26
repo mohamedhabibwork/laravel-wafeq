@@ -2,9 +2,13 @@
 
 namespace HWafeq\LaravelWafeq\Casts;
 
+use HWafeq\LaravelWafeq\Attributes\WithCurrency;
+use HWafeq\LaravelWafeq\Client;
+use HWafeq\LaravelWafeq\Contracts\ClientContract;
 use HWafeq\LaravelWafeq\Enums\Currency;
 use Spatie\LaravelData\Casts\Cast;
 use Spatie\LaravelData\Casts\IterableItemCast;
+use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Creation\CreationContext;
 use Spatie\LaravelData\Support\DataProperty;
 
@@ -22,14 +26,14 @@ use Spatie\LaravelData\Support\DataProperty;
  *    payload silently hydrates to the organisation's base currency.
  *  - If even the default resolution fails, the property stays `null`.
  *
- * @see \HWafeq\LaravelWafeq\Attributes\WithCurrency
- * @see \HWafeq\LaravelWafeq\Client::defaultCurrency()
+ * @see WithCurrency
+ * @see Client::defaultCurrency()
  */
 class WithCurrencyCast implements Cast, IterableItemCast
 {
     /**
      * @param  array<string, mixed>  $properties
-     * @param  CreationContext<\Spatie\LaravelData\Data>  $context
+     * @param  CreationContext<Data>  $context
      */
     public function cast(DataProperty $property, mixed $value, array $properties, CreationContext $context): mixed
     {
@@ -38,7 +42,7 @@ class WithCurrencyCast implements Cast, IterableItemCast
 
     /**
      * @param  array<string, mixed>  $properties
-     * @param  CreationContext<\Spatie\LaravelData\Data>  $context
+     * @param  CreationContext<Data>  $context
      */
     public function castIterableItem(DataProperty $property, mixed $value, array $properties, CreationContext $context): mixed
     {
@@ -75,9 +79,9 @@ class WithCurrencyCast implements Cast, IterableItemCast
         $client = null;
 
         try {
-            if (function_exists('app') && app()->bound(\HWafeq\LaravelWafeq\Contracts\ClientContract::class)) {
-                /** @var \HWafeq\LaravelWafeq\Contracts\ClientContract $client */
-                $client = app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class);
+            if (function_exists('app') && app()->bound(ClientContract::class)) {
+                /** @var ClientContract $client */
+                $client = app(ClientContract::class);
             }
         } catch (\Throwable) {
             $client = null;

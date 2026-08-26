@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use HWafeq\LaravelWafeq\Data\ExpenseData;
 use HWafeq\LaravelWafeq\Requests\Expenses\CreateExpenseRequest;
+use Illuminate\Routing\Redirector;
+use Illuminate\Support\Facades\Validator;
 
 it('validates a fully-populated expense payload', function () {
     $payload = [
@@ -24,13 +26,13 @@ it('validates a fully-populated expense payload', function () {
 
     $request = CreateExpenseRequest::create('/expenses/', 'POST', $payload);
     $request->setContainer($this->app);
-    $request->setRedirector($this->app->make(\Illuminate\Routing\Redirector::class));
+    $request->setRedirector($this->app->make(Redirector::class));
 
     expect($request->rules())->toBeArray()
         ->and($request->authorize())->toBeTrue()
         ->and($request->dto())->toBe(ExpenseData::class);
 
-    $validator = \Illuminate\Support\Facades\Validator::make($payload, $request->rules());
+    $validator = Validator::make($payload, $request->rules());
     expect($validator->fails())->toBeFalse();
 
     $request->merge($payload);
@@ -43,9 +45,9 @@ it('validates a fully-populated expense payload', function () {
 it('rejects an expense payload missing required fields', function () {
     $request = CreateExpenseRequest::create('/expenses/', 'POST', []);
     $request->setContainer($this->app);
-    $request->setRedirector($this->app->make(\Illuminate\Routing\Redirector::class));
+    $request->setRedirector($this->app->make(Redirector::class));
 
-    $validator = \Illuminate\Support\Facades\Validator::make([], $request->rules());
+    $validator = Validator::make([], $request->rules());
     expect($validator->fails())->toBeTrue()
         ->and($validator->errors()->has('account'))->toBeTrue()
         ->and($validator->errors()->has('amount'))->toBeTrue()
@@ -58,9 +60,9 @@ it('rejects an expense payload missing required fields', function () {
 it('rejects an invalid tax_amount_type value', function () {
     $request = CreateExpenseRequest::create('/expenses/', 'POST', []);
     $request->setContainer($this->app);
-    $request->setRedirector($this->app->make(\Illuminate\Routing\Redirector::class));
+    $request->setRedirector($this->app->make(Redirector::class));
 
-    $validator = \Illuminate\Support\Facades\Validator::make(
+    $validator = Validator::make(
         ['tax_amount_type' => 'NOPE'],
         ['tax_amount_type' => $request->rules()['tax_amount_type']],
     );
@@ -71,9 +73,9 @@ it('rejects an invalid tax_amount_type value', function () {
 it('rejects an over-long external_id', function () {
     $request = CreateExpenseRequest::create('/expenses/', 'POST', []);
     $request->setContainer($this->app);
-    $request->setRedirector($this->app->make(\Illuminate\Routing\Redirector::class));
+    $request->setRedirector($this->app->make(Redirector::class));
 
-    $validator = \Illuminate\Support\Facades\Validator::make(
+    $validator = Validator::make(
         ['external_id' => str_repeat('a', 256)],
         ['external_id' => $request->rules()['external_id']],
     );

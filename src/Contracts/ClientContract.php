@@ -53,6 +53,9 @@
 
 namespace HWafeq\LaravelWafeq\Contracts;
 
+use HWafeq\LaravelWafeq\Connector;
+use HWafeq\LaravelWafeq\Enums\Currency;
+
 /**
  * ClientContract Contract.
  *
@@ -60,7 +63,7 @@ namespace HWafeq\LaravelWafeq\Contracts;
  */
 interface ClientContract
 {
-    public function connector(): \HWafeq\LaravelWafeq\Connector;
+    public function connector(): Connector;
 
     /**
      * Resolve the configured default currency for this Wafeq organisation.
@@ -72,7 +75,7 @@ interface ClientContract
      *
      * Returns `null` only when neither source yields a currency.
      */
-    public function defaultCurrency(): ?\HWafeq\LaravelWafeq\Enums\Currency;
+    public function defaultCurrency(): ?Currency;
 
     public function organization(): OrganizationResourceContract;
 

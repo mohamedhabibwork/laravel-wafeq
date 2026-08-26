@@ -1,8 +1,9 @@
 <?php
 
 use HWafeq\LaravelWafeq\Casts\WithCurrencyCast;
+use HWafeq\LaravelWafeq\Contracts\ClientContract;
 use HWafeq\LaravelWafeq\Enums\Currency;
-use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
+use HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData;
 use HWafeq\LaravelWafeq\Tests\Pests\Concerns\FakesWafeq;
 
 uses(FakesWafeq::class);
@@ -10,7 +11,7 @@ uses(FakesWafeq::class);
 it('returns the configured currency when WAFEQ_CURRENCY is set', function () {
     config()->set('wafeq.currency', 'AED');
 
-    expect(app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class)->defaultCurrency())
+    expect(app(ClientContract::class)->defaultCurrency())
         ->toBe(Currency::AED);
 });
 
@@ -36,7 +37,7 @@ it('falls back to the organisation base currency when config is null', function 
         'legacy_id' => '',
     ]);
 
-    expect(app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class)->defaultCurrency())
+    expect(app(ClientContract::class)->defaultCurrency())
         ->toBe(Currency::SAR);
 });
 
@@ -45,7 +46,7 @@ it('caches the configured currency without hitting the organisation endpoint', f
 
     $this->fakeWafeq('/organization/', [], 500);
 
-    $client = app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class);
+    $client = app(ClientContract::class);
 
     expect($client->defaultCurrency())->toBe(Currency::USD);
     expect($client->defaultCurrency())->toBe(Currency::USD);
@@ -56,7 +57,7 @@ it('returns null when no config and the organisation lookup fails', function () 
 
     $this->fakeWafeq('/organization/', [], 500);
 
-    expect(app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class)->defaultCurrency())
+    expect(app(ClientContract::class)->defaultCurrency())
         ->toBeNull();
 });
 
@@ -65,14 +66,14 @@ it('returns null for an unrecognised configured currency', function () {
 
     $this->fakeWafeq('/organization/', [], 500);
 
-    expect(app(\HWafeq\LaravelWafeq\Contracts\ClientContract::class)->defaultCurrency())
+    expect(app(ClientContract::class)->defaultCurrency())
         ->toBeNull();
 });
 
 it('the cast resolves a known wire string to the matching Currency enum', function () {
     config()->set('wafeq.currency', 'AED');
 
-    $result = \HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData::from([
+    $result = CurrencyAwareData::from([
         'id' => 'demo_1',
         'currency' => 'USD',
     ]);
@@ -88,7 +89,7 @@ it('the cast falls back to the configured default when the wire value is null', 
     // #[WithCurrency] -> WithCurrencyCast pipeline, which fills in the
     // configured default. Omitting the key entirely leaves the
     // property untouched (which is the framework default).
-    $result = \HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData::from([
+    $result = CurrencyAwareData::from([
         'id' => 'demo_1',
         'currency' => null,
     ]);
@@ -100,7 +101,7 @@ it('the cast falls back to the configured default when the wire value is null', 
 it('the cast falls back to the configured default when the wire value is an empty string', function () {
     config()->set('wafeq.currency', 'SAR');
 
-    $result = \HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData::from([
+    $result = CurrencyAwareData::from([
         'id' => 'demo_1',
         'currency' => '',
     ]);
@@ -111,7 +112,7 @@ it('the cast falls back to the configured default when the wire value is an empt
 it('the cast falls back to the configured default for unknown wire values', function () {
     config()->set('wafeq.currency', 'EUR');
 
-    $result = \HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData::from([
+    $result = CurrencyAwareData::from([
         'id' => 'demo_1',
         'currency' => 'TOTALLY_MADE_UP',
     ]);
@@ -124,7 +125,7 @@ it('the cast leaves the property null when no default is configured and wire is 
 
     $this->fakeWafeq('/organization/', [], 500);
 
-    $result = \HWafeq\LaravelWafeq\Tests\Fixtures\CurrencyAwareData::from([
+    $result = CurrencyAwareData::from([
         'id' => 'demo_1',
     ]);
 

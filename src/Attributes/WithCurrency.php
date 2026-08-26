@@ -4,8 +4,9 @@ namespace HWafeq\LaravelWafeq\Attributes;
 
 use Attribute;
 use HWafeq\LaravelWafeq\Casts\WithCurrencyCast;
-use Spatie\LaravelData\Casts\Cast;
+use HWafeq\LaravelWafeq\Client;
 use Spatie\LaravelData\Attributes\GetsCast;
+use Spatie\LaravelData\Casts\Cast;
 
 /**
  * Marker attribute for DTO properties typed as `?Currency`.
@@ -37,14 +38,14 @@ use Spatie\LaravelData\Attributes\GetsCast;
  * whatever the wire value was. Drop the attribute on every DTO that
  * needs the organisation base-currency fallback.
  *
- * @see \HWafeq\LaravelWafeq\Casts\WithCurrencyCast
- * @see \HWafeq\LaravelWafeq\Client::defaultCurrency()
+ * @see WithCurrencyCast
+ * @see Client::defaultCurrency()
  */
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
 class WithCurrency implements GetsCast
 {
     public function get(): Cast
     {
-        return new WithCurrencyCast();
+        return new WithCurrencyCast;
     }
 }
