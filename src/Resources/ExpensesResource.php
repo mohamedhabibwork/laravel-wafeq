@@ -11,6 +11,8 @@ use HWafeq\LaravelWafeq\Data\PaginatedData;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseCreated;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseDestroyed;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseListed;
+use HWafeq\LaravelWafeq\Events\Expenses\ExpenseMarkedAsDraft;
+use HWafeq\LaravelWafeq\Events\Expenses\ExpenseMarkedAsPosted;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpensePartiallyUpdated;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseRetrieved;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseUpdated;
@@ -99,5 +101,33 @@ class ExpensesResource implements ExpensesResourceContract
         }
 
         return $ok;
+    }
+
+    /**
+     * Move a posted expense back to draft (removes its journal from the ledger).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function markAsDraft(string $id, array $payload = []): ExpenseData
+    {
+        $data = $this->toData($this->postIdempotent($this->http, "/expenses/{$id}/mark-as-draft/", $payload), ExpenseData::class);
+
+        event(new ExpenseMarkedAsDraft($data, $id, $payload));
+
+        return $data;
+    }
+
+    /**
+     * Post a draft expense to the ledger (generates its journal).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function markAsPosted(string $id, array $payload = []): ExpenseData
+    {
+        $data = $this->toData($this->postIdempotent($this->http, "/expenses/{$id}/mark-as-posted/", $payload), ExpenseData::class);
+
+        event(new ExpenseMarkedAsPosted($data, $id, $payload));
+
+        return $data;
     }
 }

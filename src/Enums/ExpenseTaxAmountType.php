@@ -3,20 +3,16 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * ExpenseTaxAmountTypeEnum mirrors the Wafeq `ExpenseTaxAmountTypeEnum`
+ * schema. Used for the `tax_amount_type` field on expense line items.
  *
- * @method static self TaxInclusive()
  * @method static self TaxExclusive()
- * @method static self NoTax()
- */
-/**
- * ExpenseTaxAmountType Enum.
+ * @method static self TaxInclusive()
  *
  * @see LaravelWafeq
  */
 enum ExpenseTaxAmountType: string
 {
-    case TaxInclusive = 'TAX_INCLUSIVE';
     case TaxExclusive = 'TAX_EXCLUSIVE';
-    case NoTax = 'NO_TAX';
+    case TaxInclusive = 'TAX_INCLUSIVE';
 }

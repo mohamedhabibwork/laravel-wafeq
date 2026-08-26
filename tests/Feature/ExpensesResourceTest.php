@@ -4,6 +4,8 @@ use HWafeq\LaravelWafeq\Data\ExpenseData;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseCreated;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseDestroyed;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseListed;
+use HWafeq\LaravelWafeq\Events\Expenses\ExpenseMarkedAsDraft;
+use HWafeq\LaravelWafeq\Events\Expenses\ExpenseMarkedAsPosted;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpensePartiallyUpdated;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseRetrieved;
 use HWafeq\LaravelWafeq\Events\Expenses\ExpenseUpdated;
@@ -85,6 +87,32 @@ it('destroys an expense', function () {
     expect(LaravelWafeq::expenses()->destroy('exp_1'))->toBeTrue();
 
     Event::assertDispatched(ExpenseDestroyed::class);
+});
+
+it('marks an expense as draft', function () {
+    Event::fake([ExpenseMarkedAsDraft::class]);
+    $this->fakeWafeq('/expenses/exp_1/mark-as-draft/', ['id' => 'exp_1', 'status' => 'DRAFT', 'currency' => 'SAR']);
+
+    $exp = LaravelWafeq::expenses()->markAsDraft('exp_1');
+
+    expect($exp)->toBeInstanceOf(ExpenseData::class)
+        ->and($exp->id)->toBe('exp_1')
+        ->and($exp->status)->toBe('DRAFT');
+
+    Event::assertDispatched(ExpenseMarkedAsDraft::class);
+});
+
+it('marks an expense as posted', function () {
+    Event::fake([ExpenseMarkedAsPosted::class]);
+    $this->fakeWafeq('/expenses/exp_1/mark-as-posted/', ['id' => 'exp_1', 'status' => 'POSTED', 'currency' => 'SAR']);
+
+    $exp = LaravelWafeq::expenses()->markAsPosted('exp_1');
+
+    expect($exp)->toBeInstanceOf(ExpenseData::class)
+        ->and($exp->id)->toBe('exp_1')
+        ->and($exp->status)->toBe('POSTED');
+
+    Event::assertDispatched(ExpenseMarkedAsPosted::class);
 });
 
 it('retrieves from a model via the InteractsWithModels trait', function () {

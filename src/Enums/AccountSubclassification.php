@@ -3,46 +3,46 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * AccountSubClassificationEnum mirrors the Wafeq `AccountSubClassificationEnum`
+ * schema. Used for the `subclassification` field on the Account resource.
  *
- * @method static self Bank()
- * @method static self AccountsReceivable()
- * @method static self OtherCurrentAsset()
- * @method static self FixedAsset()
- * @method static self OtherAsset()
- * @method static self AccountsPayable()
- * @method static self CreditCard()
- * @method static self OtherCurrentLiability()
- * @method static self LongTermLiability()
- * @method static self Equity()
  * @method static self Income()
  * @method static self OtherIncome()
- * @method static self CostOfGoodsSold()
- * @method static self Expense()
- * @method static self OtherExpense()
- * @method static self NonPosting()
- */
-/**
- * AccountSubclassification Enum.
+ * @method static self Cogs()
+ * @method static self OperatingExpense()
+ * @method static self NonOperatingExpense()
+ * @method static self CashEquivalents()
+ * @method static self CurrentAsset()
+ * @method static self NonCurrentAsset()
+ * @method static self FixedAsset()
+ * @method static self CurrentLiability()
+ * @method static self NonCurrentLiability()
+ * @method static self PaidInCapital()
+ * @method static self RetainedEarnings()
+ * @method static self AccumulatedOtherComprehensiveIncome()
+ * @method static self TreasuryStock()
+ * @method static self OwnersEquity()
+ * @method static self OpeningBalanceEquity()
  *
  * @see LaravelWafeq
  */
 enum AccountSubclassification: string
 {
-    case Bank = 'BANK';
-    case AccountsReceivable = 'ACCOUNTS_RECEIVABLE';
-    case OtherCurrentAsset = 'OTHER_CURRENT_ASSET';
-    case FixedAsset = 'FIXED_ASSET';
-    case OtherAsset = 'OTHER_ASSET';
-    case AccountsPayable = 'ACCOUNTS_PAYABLE';
-    case CreditCard = 'CREDIT_CARD';
-    case OtherCurrentLiability = 'OTHER_CURRENT_LIABILITY';
-    case LongTermLiability = 'LONG_TERM_LIABILITY';
-    case Equity = 'EQUITY';
     case Income = 'INCOME';
     case OtherIncome = 'OTHER_INCOME';
-    case CostOfGoodsSold = 'COST_OF_GOODS_SOLD';
-    case Expense = 'EXPENSE';
-    case OtherExpense = 'OTHER_EXPENSE';
-    case NonPosting = 'NON_POSTING';
+    case Cogs = 'COGS';
+    case OperatingExpense = 'OPERATING_EXPENSE';
+    case NonOperatingExpense = 'NON_OPERATING_EXPENSE';
+    case CashEquivalents = 'CASH_EQUIVALENTS';
+    case CurrentAsset = 'CURRENT_ASSET';
+    case NonCurrentAsset = 'NON_CURRENT_ASSET';
+    case FixedAsset = 'FIXED_ASSET';
+    case CurrentLiability = 'CURRENT_LIABILITY';
+    case NonCurrentLiability = 'NON_CURRENT_LIABILITY';
+    case PaidInCapital = 'PAID_IN_CAPITAL';
+    case RetainedEarnings = 'RETAINED_EARNINGS';
+    case AccumulatedOtherComprehensiveIncome = 'ACCUMULATED_OTHER_COMPREHENSIVE_INCOME';
+    case TreasuryStock = 'TREASURY_STOCK';
+    case OwnersEquity = 'OWNERS_EQUITY';
+    case OpeningBalanceEquity = 'OPENING_BALANCE_EQUITY';
 }

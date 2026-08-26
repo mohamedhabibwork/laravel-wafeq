@@ -3,18 +3,16 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * DiscountTypeEnum mirrors the Wafeq `DiscountTypeEnum` schema. Used for the
+ * `discount_type` field on discount-aware resources.
  *
- * @method static self Value()
- * @method static self Percentage()
- */
-/**
- * DiscountType Enum.
+ * @method static self Percent()
+ * @method static self Amount()
  *
  * @see LaravelWafeq
  */
 enum DiscountType: string
 {
-    case Value = 'VALUE';
-    case Percentage = 'PERCENTAGE';
+    case Percent = 'percent';
+    case Amount = 'amount';
 }

@@ -3,24 +3,20 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * TaxTypeEnum mirrors the Wafeq `TaxTypeEnum` schema. Used for the `tax_type`
+ * field on tax-aware resources.
  *
- * @method static self Vat()
- * @method static self SalesTax()
- * @method static self WithholdingTax()
- * @method static self Excise()
- * @method static self Custom()
- */
-/**
- * TaxType Enum.
+ * @method static self Sales()
+ * @method static self Purchases()
+ * @method static self ReverseCharge()
+ * @method static self OutOfScope()
  *
  * @see LaravelWafeq
  */
 enum TaxType: string
 {
-    case Vat = 'VAT';
-    case SalesTax = 'SALES_TAX';
-    case WithholdingTax = 'WITHHOLDING_TAX';
-    case Excise = 'EXCISE';
-    case Custom = 'CUSTOM';
+    case Sales = 'SALES';
+    case Purchases = 'PURCHASES';
+    case ReverseCharge = 'REVERSE_CHARGE';
+    case OutOfScope = 'OUT_OF_SCOPE';
 }

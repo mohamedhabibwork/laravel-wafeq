@@ -5,6 +5,7 @@ namespace HWafeq\LaravelWafeq\Tests;
 use HWafeq\LaravelWafeq\LaravelWafeqServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
+use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 
 class TestCase extends Orchestra
 {
@@ -19,6 +20,10 @@ class TestCase extends Orchestra
         $defaultDataConfig = require __DIR__.'/../vendor/spatie/laravel-data/config/data.php';
 
         config()->set('data', array_merge($defaultDataConfig, [
+            'name_mapping_strategy' => [
+                'input' => SnakeCaseMapper::class,
+                'output' => SnakeCaseMapper::class,
+            ],
             'structure_caching' => [
                 'enabled' => false,
                 'directories' => [],

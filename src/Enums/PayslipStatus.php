@@ -3,24 +3,16 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * PayslipStatusEnum mirrors the Wafeq `PayslipStatusEnum` schema. Used for
+ * the `status` field on the Payslip resource.
  *
  * @method static self Draft()
- * @method static self Pending()
- * @method static self Approved()
- * @method static self Paid()
- * @method static self Void()
- */
-/**
- * PayslipStatus Enum.
+ * @method static self Posted()
  *
  * @see LaravelWafeq
  */
 enum PayslipStatus: string
 {
     case Draft = 'DRAFT';
-    case Pending = 'PENDING';
-    case Approved = 'APPROVED';
-    case Paid = 'PAID';
-    case Void = 'VOID';
+    case Posted = 'POSTED';
 }

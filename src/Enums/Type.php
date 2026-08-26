@@ -3,20 +3,16 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * TypeEnum mirrors the Wafeq `TypeEnum` schema. Used for the `type` field on
+ * resources that distinguish a percentage-based vs amount-based value.
  *
- * @method static self Customer()
- * @method static self Vendor()
- * @method static self Both()
- */
-/**
- * Type Enum.
+ * @method static self Percent()
+ * @method static self Amount()
  *
  * @see LaravelWafeq
  */
 enum Type: string
 {
-    case Customer = 'CUSTOMER';
-    case Vendor = 'VENDOR';
-    case Both = 'BOTH';
+    case Percent = 'percent';
+    case Amount = 'amount';
 }

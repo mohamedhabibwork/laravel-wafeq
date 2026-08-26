@@ -3,18 +3,18 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * ChargeTypeEnum mirrors the Wafeq `ChargeTypeEnum` schema. Used for the
+ * `charge_type` field on payment-charge resources (Ours / Beneficiary / Shared).
  *
- * @method static self Fixed()
- * @method static self Percentage()
- */
-/**
- * ChargeType Enum.
+ * @method static self Our()
+ * @method static self Beneficiary()
+ * @method static self Shared()
  *
  * @see LaravelWafeq
  */
 enum ChargeType: string
 {
-    case Fixed = 'FIXED';
-    case Percentage = 'PERCENTAGE';
+    case Our = 'OUR';
+    case Beneficiary = 'BEN';
+    case Shared = 'SHA';
 }

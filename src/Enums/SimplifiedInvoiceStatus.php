@@ -3,26 +3,16 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * SimplifiedInvoiceStatusEnum mirrors the Wafeq `SimplifiedInvoiceStatusEnum`
+ * schema. Used for the `status` field on the SimplifiedInvoice resource.
  *
  * @method static self Draft()
- * @method static self Open()
  * @method static self Paid()
- * @method static self Overdue()
- * @method static self PartiallyPaid()
- * @method static self Void()
- */
-/**
- * SimplifiedInvoiceStatus Enum.
  *
  * @see LaravelWafeq
  */
 enum SimplifiedInvoiceStatus: string
 {
     case Draft = 'DRAFT';
-    case Open = 'OPEN';
     case Paid = 'PAID';
-    case Overdue = 'OVERDUE';
-    case PartiallyPaid = 'PARTIALLY_PAID';
-    case Void = 'VOID';
 }

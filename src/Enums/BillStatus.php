@@ -3,28 +3,18 @@
 namespace HWafeq\LaravelWafeq\Enums;
 
 /**
- * Wafeq enum value.
+ * BillStatusEnum mirrors the Wafeq `BillStatusEnum` schema. Used for the
+ * `status` field on the Bill resource.
  *
  * @method static self Draft()
- * @method static self Open()
- * @method static self Overdue()
- * @method static self PartiallyPaid()
+ * @method static self Authorized()
  * @method static self Paid()
- * @method static self Void()
- * @method static self Unpaid()
- */
-/**
- * BillStatus Enum.
  *
  * @see LaravelWafeq
  */
 enum BillStatus: string
 {
     case Draft = 'DRAFT';
-    case Open = 'OPEN';
-    case Overdue = 'OVERDUE';
-    case PartiallyPaid = 'PARTIALLY_PAID';
+    case Authorized = 'AUTHORIZED';
     case Paid = 'PAID';
-    case Void = 'VOID';
-    case Unpaid = 'UNPAID';
 }

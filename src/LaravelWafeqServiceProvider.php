@@ -3,7 +3,9 @@
 namespace HWafeq\LaravelWafeq;
 
 use HWafeq\LaravelWafeq\Contracts\ClientContract;
+use Illuminate\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
+use Spatie\LaravelData\Mappers\SnakeCaseMapper;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -40,5 +42,14 @@ class LaravelWafeqServiceProvider extends PackageServiceProvider
         });
 
         $this->app->alias(ClientContract::class, 'laravel-wafeq');
+
+        // Wafeq's wire format is snake_case (e.g. `building_number`,
+        // `tax_amount_type`) while our DTOs expose camelCase properties.
+        // Tell Spatie Data to translate property names to snake_case
+        // when looking up inputs and back to camelCase when outputting.
+        /** @var Repository $config */
+        $config = $this->app->make('config');
+        $config->set('data.name_mapping_strategy.input', SnakeCaseMapper::class);
+        $config->set('data.name_mapping_strategy.output', SnakeCaseMapper::class);
     }
 }

@@ -38,6 +38,20 @@ interface ExpensesResourceContract extends WafeqResourceWithModelMethods
     public function destroy(string $id): bool;
 
     /**
+     * Move a posted expense back to draft (removes its journal from the ledger).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function markAsDraft(string $id, array $payload = []): ExpenseData;
+
+    /**
+     * Post a draft expense to the ledger (generates its journal).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function markAsPosted(string $id, array $payload = []): ExpenseData;
+
+    /**
      * @param  array<string, mixed>  $extra
      */
     public function createFromModel(array $extra = []): ExpenseData;
