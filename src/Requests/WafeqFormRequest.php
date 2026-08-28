@@ -44,18 +44,17 @@ abstract class WafeqFormRequest extends FormRequest
     abstract public function dto(): string;
 
     /**
-     * @template T of Data
      * Materialise the matching DTO from the validated payload.
      *
      * Wire-format keys are already snake_case; the package's
      * `SnakeCaseMapper` configuration handles the bidirectional
      * translation, so callers receive a fully-populated DTO.
      *
-     * @return Data|T The concrete DTO subtype declared by the subclass.
+     * @return Data The concrete DTO subtype declared by the subclass.
      */
     public function toDto(): Data
     {
-        /** @var class-string<Data|T> $dto */
+        /** @var class-string<Data> $dto */
         $dto = $this->dto();
 
         return $dto::from($this->validated());

@@ -7,7 +7,7 @@
 
 A typed Laravel client for the [Wafeq](https://wafeq.com) accounting API. Every endpoint is exposed as a resource behind a single `LaravelWafeq` facade, returning [`spatie/laravel-data`](https://github.com/spatie/laravel-data) DTOs so you get autocompletion, immutability and validation on every response.
 
-> **44 resources. 121 FormRequests. 19 typed enums. 11 shared DTOs. 797 tests. Zero magic.**
+> **44 resources. 120 FormRequests. 19 typed enums. 11 shared DTOs. 797 tests. Zero magic.**
 > [Installation](#installation) · [Usage](#usage) · [Features](#features) · [Resources](#resources) · [Documentation](./docs/index.md)
 
 ---
@@ -152,7 +152,7 @@ Every FormRequest exposes:
 - `dto(): class-string<Data>` — the matching `spatie/laravel-data` DTO.
 - `toDto(): Data` — materialises the DTO from the validated payload in one call.
 
-The full catalogue (121 FormRequests across every endpoint that takes a body — `create`, `update`, `partialUpdate`, plus special actions like `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `bill`, `invoice`, `previewCreate`, `endEarly`, `previewEndEarly`) lives under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). All extend [`HWafeq\LaravelWafeq\Requests\WafeqFormRequest`](./docs/requests.md#wafeqformrequest-base-class), which provides the `dto()` / `toDto()` plumbing.
+The full catalogue (120 FormRequests across every endpoint that takes a body — `create`, `update`, `partialUpdate`, plus special actions like `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `bill`, `invoice`, `previewCreate`, `endEarly`, `previewEndEarly`) lives under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). All extend [`HWafeq\LaravelWafeq\Requests\WafeqFormRequest`](./docs/requests.md#wafeqformrequest-base-class), which provides the `dto()` / `toDto()` plumbing.
 
 ### Nested resources
 
@@ -357,10 +357,12 @@ Every endpoint that accepts a request body ships a typed Laravel FormRequest und
 
 | Endpoint family | FormRequests |
 |-----------------|--------------|
-| `*_create.md`  | `Create<Resource>Request` (121 of them — one per resource) |
+| `*_create.md`  | `Create<Resource>Request` (one per resource) |
 | `*_update.md`  | `Update<Resource>Request` |
 | `*_partial_update.md` | `PartialUpdate<Resource>Request` (every field becomes `sometimes` + `nullable`) |
 | Special actions | `CreateMarkAsDraftExpenseRequest`, `CreateMarkAsPostedExpenseRequest`, `CreateInvoiceTaxAuthorityReportRequest`, `CreateApiInvoiceBulkSendRequest`, `CreateQuoteInvoiceRequest`, `CreatePurchaseOrderBillRequest`, `CreateAmortizationPreviewRequest`, `CreateAmortizationEndEarlyRequest`, `CreateRevenueRecognitionPreviewRequest`, … |
+
+**120 FormRequests total** (one per endpoint in `wafeq-docs/` that takes a request body), plus the `WafeqFormRequest` base class.
 
 All 121 requests extend a single base class:
 
@@ -440,7 +442,7 @@ it('creates an invoice', function () {
 Run the test suite yourself:
 
 ```bash
-./vendor/bin/pest                    # 396 passed (834 assertions)
+./vendor/bin/pest                    # 797 passed (2075 assertions)
 ./vendor/bin/phpstan analyse        # no errors
 ./vendor/bin/pint                   # clean
 ```
@@ -498,6 +500,7 @@ The package ships comprehensive documentation under [`docs/`](./docs/index.md):
 | [Events](./docs/events.md) | Typed Laravel events dispatched from every Resource method. |
 | [Enums](./docs/enums.md) | Every typed enum the package ships. |
 | [DTOs](./docs/dtos.md) | Data Transfer Object conventions, `extra` catch-all, paginated envelopes, shared DTOs. |
+| [Requests](./docs/requests.md) | The 120 `FormRequest` classes — JSON Schema → validation rules → typed DTO conversion. |
 | [Testing](./docs/testing.md) | The `FakesWafeq` trait and `WafeqFake` helper. |
 | [Resources](./docs/resources/organization.md) | One page per resource family with curl-equivalent examples. |
 
