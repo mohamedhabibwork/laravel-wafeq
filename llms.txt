@@ -1,0 +1,278 @@
+# Laravel Wafeq
+
+> A typed Laravel client for the Wafeq accounting API, including ZATCA e-invoicing. Every Wafeq endpoint is exposed as a resource behind the `LaravelWafeq` facade and returns `spatie/laravel-data` DTOs. Root namespace: `HWafeq\LaravelWafeq`. Requires PHP ^8.3 and Laravel ^11.0 || ^12.0 || ^13.0. Package: `mohamedhabibwork/laravel-wafeq`.
+
+Package summary: 44 Wafeq resources, 120 FormRequests, 19 typed enums, 11 shared DTOs, and a ZATCA client with 5 resource groups. All names below come from the source tree in this repository.
+
+## Key facts
+
+- Entry point: `LaravelWafeq::<accessor>()` returns a resource, for example `LaravelWafeq::contacts()`. `LaravelWafeq::zatca()` returns the ZATCA client.
+- Resource methods: `list()`, `retrieve($id)`, `create($payload)`, `update($id, $payload)`, `partialUpdate($id, $payload)`, `destroy($id)`, plus resource-specific extras such as `markAsDraft`, `markAsPosted`, `invoice`, `bill`, `taxAuthorityReport`, `bulkSend`, `preview*`, and `endEarly*`.
+- Responses are hydrated into typed DTOs. `list()` returns `PaginatedData` with `results`. Wire format is snake_case; DTO properties are camelCase.
+- Nested resources take the parent id first, for example `LaravelWafeq::bankLedgerTransactions()->list('ba_123')` and `LaravelWafeq::payslipsPayItems()->list('pay_123')`.
+- Eloquent models can be passed to `*Model()` methods such as `createFromModel`, `retrieveModel`, `updateModel`, `partialUpdateModel`, and `destroyModel`. Alternatively, use the `HasWafeqResource` trait and call `$model->wafeq()`.
+- Every mutating accounting call sends a UUID idempotency header (`X-Wafeq-Idempotency-Key` by default). Retries are safe.
+- Unknown ZATCA device-status and wallet-balance values hydrate to `null` through `LenientEnumCast` instead of throwing.
+- `WAFEQ_CURRENCY` sets the default currency. `#[WithCurrency]` fills DTO properties from it when the response omits a value.
+- ZATCA defaults to the `simulation` environment. Switch with `WAFEQ_ZATCA_ENVIRONMENT=production` or `->production()`. ZATCA requests send no idempotency key.
+- Non-2xx responses are thrown as typed exceptions under `HWafeq\LaravelWafeq\Exceptions`.
+- Install with `composer require mohamedhabibwork/laravel-wafeq`. The service provider and facade are auto-discovered. Set `WAFEQ_API_KEY` in `.env`.
+
+## Quick start
+
+```php
+use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
+use HWafeq\LaravelWafeq\Enums\Currency;
+
+$page = LaravelWafeq::contacts()->list(['limit' => 50]);
+
+$contact = LaravelWafeq::contacts()->create([
+    'name'     => 'Acme Inc.',
+    'type'     => 'business',
+    'currency' => Currency::SAR->value,
+]);
+
+LaravelWafeq::contacts()->destroy('ct_123');
+```
+
+## Documentation
+
+- [README](README.md): installation, configuration, usage, features, and resource map
+- [Configuration](config/wafeq.php): every config key and environment variable
+- [CHANGELOG](CHANGELOG.md): release history
+- [License](LICENSE.md): MIT license
+- [Wafeq API reference](wafeq-docs/): one markdown spec per endpoint, named `<resource>_<action>.md`. FormRequest validation rules are derived from these files.
+- [Authentication](wafeq-docs/authentication.md): API key usage
+- [Authorization](wafeq-docs/authorization.md): permissions model
+- [Versioning](wafeq-docs/versioning.md): API versioning
+- [Filtering](wafeq-docs/filter.md): list query filters
+- [Calculations and rounding](wafeq-docs/calculations-and-rounding.md): monetary rounding rules
+
+## Resources (accessors on `LaravelWafeq`)
+
+### Organization
+
+- [organization()](src/Resources/OrganizationResource.php)
+
+### Contacts and people
+
+- [contacts()](src/Resources/ContactsResource.php)
+- [employees()](src/Resources/EmployeesResource.php)
+- [beneficiaries()](src/Resources/BeneficiariesResource.php)
+- [branches()](src/Resources/BranchesResource.php)
+
+### Sales
+
+- [invoices()](src/Resources/InvoicesResource.php)
+- [apiInvoices()](src/Resources/ApiInvoicesResource.php)
+- [simplifiedInvoices()](src/Resources/SimplifiedInvoicesResource.php)
+- [creditNotes()](src/Resources/CreditNotesResource.php)
+- [apiCreditNotes()](src/Resources/ApiCreditNotesResource.php)
+- [quotes()](src/Resources/QuotesResource.php)
+
+### Purchases
+
+- [bills()](src/Resources/BillsResource.php)
+- [debitNotes()](src/Resources/DebitNotesResource.php)
+- [purchaseOrders()](src/Resources/PurchaseOrdersResource.php)
+- [expenses()](src/Resources/ExpensesResource.php)
+- [paymentRequests()](src/Resources/PaymentRequestsResource.php)
+
+### Payments and payroll
+
+- [payments()](src/Resources/PaymentsResource.php)
+- [payslips()](src/Resources/PayslipsResource.php)
+
+### Banking
+
+- [bankAccounts()](src/Resources/BankAccountsResource.php)
+- [bankLedgerTransactions()](src/Resources/BankLedgerTransactionsResource.php): nested under a bank account
+- [bankStatementTransactions()](src/Resources/BankStatementTransactionsResource.php): nested under a bank account
+
+### Chart of accounts and master data
+
+- [accounts()](src/Resources/AccountsResource.php)
+- [taxRates()](src/Resources/TaxRatesResource.php)
+- [costCenters()](src/Resources/CostCentersResource.php)
+- [warehouses()](src/Resources/WarehousesResource.php)
+- [projects()](src/Resources/ProjectsResource.php)
+- [customFields()](src/Resources/CustomFieldsResource.php)
+- [unitsOfMeasure()](src/Resources/UnitsOfMeasureResource.php)
+- [itemUnitsOfMeasure()](src/Resources/ItemUnitsOfMeasureResource.php)
+- [items()](src/Resources/ItemsResource.php)
+
+### Line items
+
+- [invoicesLineItems()](src/Resources/InvoicesLineItemsResource.php)
+- [billsLineItems()](src/Resources/BillsLineItemsResource.php)
+- [creditNotesLineItems()](src/Resources/CreditNotesLineItemsResource.php)
+- [debitNotesLineItems()](src/Resources/DebitNotesLineItemsResource.php)
+- [quotesLineItems()](src/Resources/QuotesLineItemsResource.php)
+- [purchaseOrdersLineItems()](src/Resources/PurchaseOrdersLineItemsResource.php)
+- [simplifiedInvoicesLineItems()](src/Resources/SimplifiedInvoicesLineItemsResource.php)
+- [journalLineItems()](src/Resources/JournalLineItemsResource.php)
+- [payslipsPayItems()](src/Resources/PayslipsPayItemsResource.php): nested under a payslip
+
+### Accounting
+
+- [manualJournals()](src/Resources/ManualJournalsResource.php)
+- [amortizations()](src/Resources/AmortizationsResource.php)
+- [revenueRecognitions()](src/Resources/RevenueRecognitionsResource.php)
+
+### Files and reports
+
+- [files()](src/Resources/FilesResource.php)
+- [reports()](src/Resources/ReportsResource.php)
+
+Each resource has a matching `HWafeq\LaravelWafeq\Contracts\<Name>ResourceContract` interface under [src/Contracts](src/Contracts/) for type-hinting and dependency injection.
+
+## ZATCA e-invoicing
+
+- Entry point: `LaravelWafeq::zatca()` returns [`ZatcaClient`](src/ZatcaClient.php), which is immutable.
+- Scoping methods: `simulation()`, `production()`, `withEnvironment($env)`, `forBranch($tin)`, `forConnectedAccount($id)`. Each returns a re-scoped copy that sends `X-ZATCA-Environment`, `X-ZATCA-Branch`, and `X-ZATCA-Connected-Account-Id` headers.
+- Read-only accessors: `environment()`, `branch()`, `connectedAccount()`, `headers()`.
+- Document families: `invoices()`, `creditNotes()`, `debitNotes()`, `prepaymentInvoices()`, `simplifiedInvoices()`, `simplifiedCreditNotes()`, `simplifiedDebitNotes()`, `prepaymentSimplifiedInvoices()`, and `documents(ZatcaDocumentType::…)`.
+- Document operations: `report`, `validate`, `bulkReport`, `bulkValidate`, `issue`, `bulkIssue` (simplified only), `list`, `retrieve`, `updateMetadata`, `download`, `retry`, `send`.
+- Other accessors: `devices()` (`list`, `retrieve`, `renew`, `revoke`, and `register` for onboarding), `connectedAccounts()` (CRUD), and `usage()` (remaining document credits).
+- Resources: [ZatcaDocumentsResource](src/Resources/Zatca/ZatcaDocumentsResource.php), [ZatcaSimplifiedDocumentsResource](src/Resources/Zatca/ZatcaSimplifiedDocumentsResource.php), [ZatcaDevicesResource](src/Resources/Zatca/ZatcaDevicesResource.php), [ZatcaConnectedAccountsResource](src/Resources/Zatca/ZatcaConnectedAccountsResource.php), [ZatcaUsageResource](src/Resources/Zatca/ZatcaUsageResource.php).
+- Response DTOs: [src/Data/Zatca](src/Data/Zatca/): `ZatcaDocumentData` (`id()`, `statusEnum()`, `isReported()`, `needsRetry()`), `ZatcaDocumentSummaryData`, `ZatcaDocumentReferenceData`, `ZatcaValidationResultData`, `ZatcaDeviceData`, `ZatcaConnectedAccountData`, `ZatcaUsageData` (`isBlocked()`). They have no `extra` catch-all.
+- Payload DTOs (typed builder): [src/Data/Zatca/Payload](src/Data/Zatca/Payload/). All extend `ZatcaPayloadData`, whose `toPayload()` returns snake_case wire data with nulls dropped. Every resource method accepts them wherever it accepts an array.
+  - Document: `ZatcaDocumentPayloadData` (customer defaults to an anonymous B2C buyer, sent as `{}`), `ZatcaSupplierData`, `ZatcaCustomerData`, `ZatcaAddressData`, `ZatcaPartyIdentificationData` (`commercialRegistration()`, `supplier()`, `customer()`), `ZatcaLineItemData` (`make()`, 15% VAT by default), `ZatcaLineItemIdentifiersData`, `ZatcaStandardItemIdentifierData`, `ZatcaTaxData` (`standard()`, `zeroRated()`, `exempt()`, `outOfScope()`), `ZatcaChargeData`, `ZatcaDiscountData`, `ZatcaPrepaymentData`, `ZatcaPaymentMeansData`.
+  - Request bodies: `ZatcaReportRequestData` (document plus options in the flat wire shape; `for($document, $options)`), `ZatcaDeliveryOptionsData` (`channels`, `language`, `metadata`, `reference`, `template`), `ZatcaChannelData` (`email()`), `ZatcaDeviceRegistrationData`, `ZatcaConnectedAccountPayloadData`, `ZatcaMetadataUpdateData`.
+  - Explicit `$options` passed to `report` / `validate` / `issue` override the keys carried by a `ZatcaReportRequestData`.
+- Form requests: [src/Requests/Zatca](src/Requests/Zatca/), 15 concrete classes plus the abstract `ZatcaDocumentFormRequest`.
+  - One per document family, shared by `report`, `validate` and `issue`: `ReportZatcaInvoiceRequest`, `ReportZatcaCreditNoteRequest`, `ReportZatcaDebitNoteRequest`, `ReportZatcaPrepaymentInvoiceRequest`, `ReportZatcaSimplifiedInvoiceRequest`, `ReportZatcaSimplifiedCreditNoteRequest`, `ReportZatcaSimplifiedDebitNoteRequest`, `ReportZatcaPrepaymentSimplifiedInvoiceRequest`. `toDto()` returns `ZatcaReportRequestData`.
+  - Others: `SendZatcaDocumentRequest`, `UpdateZatcaDocumentMetadataRequest`, `RegisterZatcaDeviceRequest`, `RenewZatcaDeviceRequest`, `CreateZatcaConnectedAccountRequest`, `UpdateZatcaConnectedAccountRequest`, `PartialUpdateZatcaConnectedAccountRequest`.
+  - Rules come from [`ZatcaDocumentRules`](src/Support/Zatca/ZatcaDocumentRules.php):
+    - B2B documents need a named customer with a street and city.
+    - Credit and debit notes need `reference_document_number` and `payment_means` with `code` and `issue_reason`.
+    - Non-standard VAT needs an exemption reason; `VATEX-SA-OOS` also needs free text.
+    - Prepayment invoices may not carry `prepayments`.
+- Code lists: [`ZatcaCodeLists`](src/Support/Zatca/ZatcaCodeLists.php) holds `COUNTRY_CODES`, `CHARGE_REASON_CODES`, `DISCOUNT_REASON_CODES` and `PAYMENT_MEANS_CODES`, generated from the Wafeq ZATCA reference.
+- Contracts: [src/Contracts/Zatca](src/Contracts/Zatca/), including `ZatcaClientContract`.
+- Enums: [src/Enums/Zatca](src/Enums/Zatca/):
+  - Client and API: `ZatcaEnvironment` (`fromApiKey()`), `ZatcaDocumentType` (`path()`, `isSimplified()`, `isNote()`, `isPrepayment()`), `ZatcaDocumentStatus`, `ZatcaDeviceStatus`, `ZatcaWalletBalance`, `ZatcaDownloadType`.
+  - Documents: `ZatcaTaxCategory`, `ZatcaExemptionReason` (`category()`, `forCategory()`), `ZatcaCustomerIdentificationType`, `ZatcaSupplierIdentificationType`, `ZatcaDocumentIndicator`, `ZatcaTaxAmountType`, `ZatcaLanguage`.
+  - Currencies reuse `Enums\Currency`.
+- Concerns: [src/Concerns/Zatca](src/Concerns/Zatca/):
+  - `HandlesZatcaResponses` maps the ZATCA error envelope and skips the default-currency lookup.
+  - `NormalizesZatcaPayloads` turns DTOs and enums into wire arrays.
+- Exceptions: `ZatcaValidationException` (extends `ValidationException`; `zatcaErrors()` lists `{code, detail, attr}`), `ZatcaSubmissionException`, and `ZatcaConfigurationException`.
+- Events: under [src/Events/Zatca](src/Events/Zatca/), including `ZatcaDocumentReported`, `ZatcaDocumentIssued`, `ZatcaDeviceRegistered`, and `ZatcaConnectedAccountCreated`.
+- Retry policy: ZATCA requests retry only on connection errors and on the `http.retry.when` statuses (429 and 503). Rejected reports are never resubmitted.
+- Host: the ZATCA API is only served from `https://api.wafeq.com/v1`, even when the accounting client targets sandbox. The environment header, not the URL, selects simulation.
+- Guides: [B2C](https://docs.wafeq.com/zatca/for-b2c), [B2B](https://docs.wafeq.com/zatca/for-b2b), [Platforms and white label](https://docs.wafeq.com/zatca/for-platforms-or-white-label), [ZATCA API index](https://docs.wafeq.com/zatca/llms.txt).
+
+### ZATCA example
+
+```php
+use HWafeq\LaravelWafeq\Data\Zatca\Payload\{ZatcaAddressData, ZatcaDocumentPayloadData, ZatcaLineItemData, ZatcaPartyIdentificationData, ZatcaSupplierData};
+use HWafeq\LaravelWafeq\Enums\Currency;
+use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
+
+$zatca = LaravelWafeq::zatca(); // simulation by default
+
+$zatca->devices()->register('POS 1', $otpFromFatooraPortal);
+
+$document = $zatca->simplifiedInvoices()->report(new ZatcaDocumentPayloadData(
+    documentNumber: 'INV-0001',
+    currency: Currency::SAR,
+    supplyDate: '2026-11-06',
+    supplier: new ZatcaSupplierData(
+        name: 'ABCD Inc',
+        address: new ZatcaAddressData(street: 'Anas Bin Malik', building: '3141', city: 'Riyadh', district: 'Al Malqa', postalCode: '13521'),
+        identification: ZatcaPartyIdentificationData::commercialRegistration('1234567890'),
+    ),
+    lineItems: [ZatcaLineItemData::make('iPhone 15 Pro', quantity: 1, unitPrice: 4699)],
+));
+
+$document->isReported(); // true
+$document->qrCodeData;   // base64 TLV for the receipt
+
+// Platforms: act on behalf of a connected account.
+$zatca->production()->forConnectedAccount('ca_123')->invoices()->report($b2bDocument);
+
+// Controllers: validate, convert, report.
+$zatca->simplifiedInvoices()->report($request->toDto()); // ReportZatcaSimplifiedInvoiceRequest
+```
+
+## Data transfer objects
+
+- Base: `spatie/laravel-data` classes under [src/Data](src/Data/). Accounting responses use an `extra` catch-all property, so new Wafeq fields do not break existing code. ZATCA DTOs are described in the ZATCA section above.
+- Shared DTOs under [src/Data/Shared](src/Data/Shared/):
+  - `AccountRefData`
+  - `AddressData`
+  - `BranchRefData`
+  - `CompanyIdentificationData`
+  - `ContactRefData`
+  - `DimensionRefData`
+  - `DualLangData`: `{en, ar}` value object. It implements `Castable`, so a bare string is accepted and wrapped as `{en: $string, ar: null}`.
+  - `ItemRefData`
+  - `TaxRateRefData`
+  - `UserRefData`
+  - `WarehouseRefData`
+
+## Enums
+
+- Non-ZATCA enums under [src/Enums](src/Enums/), 19 total: `AccountSubclassification`, `BankAccountSubclassification`, `BillStatus`, `ChargeType`, `Classification`, `Currency`, `DiscountType`, `Environment`, `ExpenseTaxAmountType`, `Language41a`, `LanguageAc1`, `Medium`, `PaymentRequestStatus`, `PayslipStatus`, `SimplifiedInvoiceStatus`, `Status9b4`, `TaxAmountType8ab`, `TaxType`, and `Type`.
+- ZATCA enums under [src/Enums/Zatca](src/Enums/Zatca/), 13 total.
+- Casting: casts live in [src/Casts](src/Casts/): `DualLangCast`, `LenientEnumCast` (unknown value → `null`; used on ZATCA response enums), and `WithCurrencyCast`. ZATCA payload enums use Spatie's strict `EnumCast` explicitly, so invalid input fails instead of silently becoming `null`.
+
+## FormRequests
+
+- 120 Wafeq FormRequests under [src/Requests](src/Requests/), one per endpoint that takes a request body, plus the base class [`WafeqFormRequest`](src/Requests/WafeqFormRequest.php). Create, update, and partial-update requests are included, along with special actions such as `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `invoice`, `bill`, `previewCreate`, `endEarly`, and `previewEndEarly`.
+- Each FormRequest provides `rules()`, `attributes()`, `dto()`, and `toDto()`. Rules are derived from the matching `wafeq-docs/<resource>_<action>.md` spec.
+- Partial-update requests make every field `sometimes` and `nullable`. Bodyless endpoints return empty `rules()` and still implement `dto()`.
+- ZATCA FormRequests (15, under `Requests\Zatca`) are listed in the ZATCA section above.
+
+## Events
+
+- Each successful resource call dispatches a typed event under [src/Events](src/Events/), grouped by domain. Examples: `Events\Contacts\ContactCreated`, `ContactListed`, `ContactRetrieved`, `ContactUpdated`, `ContactPartiallyUpdated`, and `ContactDestroyed`.
+- ZATCA events live under `Events\Zatca`.
+
+## Exceptions
+
+Under [src/Exceptions](src/Exceptions/):
+
+- `WafeqException`: catch-all base for Wafeq errors
+- `AuthenticationException`: 401 and 403
+- `NotFoundException`: 404
+- `ValidationException`: 422, with `context['errors']` holding the field-level map
+- `RateLimitException`: 429, with `context['retry_after']`
+- `ServerException`: 5xx, after the HTTP client retries
+- `ZatcaValidationException`, `ZatcaSubmissionException`, `ZatcaConfigurationException`: ZATCA-specific errors
+
+## Concerns and attributes
+
+- [src/Concerns](src/Concerns/): `HasWafeqResource`, `HoldsWafeqModel`, `HandlesResponses`, `FillsCurrencyDefaults`, and one `InteractsWith<Resource>Model` trait per resource that adds the model-aware overloads.
+- [src/Attributes](src/Attributes/): `WithCurrency`, for auto-filling DTO currency properties from the configured default.
+- [src/Connector.php](src/Connector.php) and [src/Client.php](src/Client.php): HTTP connector and client, built on Laravel's `Http` client.
+
+## Configuration
+
+- [config/wafeq.php](config/wafeq.php) keys:
+  - `environment` (`WAFEQ_ENVIRONMENT`, default `sandbox`)
+  - `api_key` (`WAFEQ_API_KEY`, required)
+  - `base_urls.sandbox`, `base_urls.production`
+  - `http.timeout`, `http.connect_timeout`
+  - `http.retry.times`, `http.retry.delay`, `http.retry.when` (429 and 503)
+  - `http.log` (`WAFEQ_HTTP_LOG`)
+  - `idempotency_header` (`WAFEQ_IDEMPOTENCY_HEADER`)
+  - `currency` (`WAFEQ_CURRENCY`)
+  - `zatca.environment`, `zatca.api_key`, `zatca.base_url`, `zatca.branch`, `zatca.connected_account`
+
+## Testing
+
+- [`ZatcaFake`](src/Testing/ZatcaFake.php) (`HWafeq\LaravelWafeq\Testing`): ships with the package for applications testing their ZATCA integration offline.
+  - `ZatcaFake::fake($overrides)` stubs every ZATCA endpoint. Responses echo the request (document number, reference, metadata), validation computes totals from the line items, and registered devices take the request's branch / connected-account headers. Non-ZATCA requests fall through to other `Http::fake()` stubs.
+  - Overrides are keyed by path relative to `/zatca/`, with an optional HTTP method and `*` wildcards (e.g. `'POST invoices/*'`). Values can be an array, an `Http::response()`, or a callable receiving the request.
+  - Response builders: `document()`, `device()`, `connectedAccount()`, `usage()`, `page()`, `validationError()`, `submissionError()`, `noActiveDevice()`, `rateLimited()`, `serverError()`.
+  - Assertions: `assertReported()`, `assertIssued()`, `assertNotReported()`, `assertNothingReported()`, `assertDeviceRegistered()`, `assertSentToEnvironment()`, `assertSentForConnectedAccount()`, plus `recorded()`.
+- [tests/Pests/Concerns/FakesWafeq.php](tests/Pests/Concerns/FakesWafeq.php): the package's internal `FakesWafeq` trait for the accounting API (autoload-dev only, not shipped to applications). Helpers: `fakeWafeq($path, $body)`, `fakeWafeqPage()`, `fakeNotFound()`, `fakeValidationError()`, `fakeRateLimit()`, `fakeServerError()`, and `fakeAuthError()`.
+- Test runner: Pest. Run with `./vendor/bin/pest`.
+
+## Optional
+
+- [Service provider](src/LaravelWafeqServiceProvider.php)
+- [Facade](src/Facades/LaravelWafeq.php)
+- [Client contract](src/Contracts/ClientContract.php): accessor for every resource and for `zatca()`
