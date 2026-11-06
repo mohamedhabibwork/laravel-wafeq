@@ -7,8 +7,8 @@
 
 A typed Laravel client for the [Wafeq](https://wafeq.com) accounting API. Every endpoint is exposed as a resource behind a single `LaravelWafeq` facade, returning [`spatie/laravel-data`](https://github.com/spatie/laravel-data) DTOs so you get autocompletion, immutability and validation on every response.
 
-> **44 resources. 120 FormRequests. 19 typed enums. 11 shared DTOs. 797 tests. Zero magic.**
-> [Installation](#installation) · [Usage](#usage) · [Features](#features) · [Resources](#resources) · [Documentation](./docs/index.md)
+> **44 resources. 120 FormRequests. 19 typed enums. 11 shared DTOs. Zero magic.**
+> [Installation](#installation) · [Usage](#usage) · [Features](#features) · [Documentation](#documentation) · [llms.txt](./llms.txt)
 
 ---
 
@@ -20,11 +20,12 @@ A typed Laravel client for the [Wafeq](https://wafeq.com) accounting API. Every 
 - **Built on Laravel's HTTP client** — retries (`429`, `503`), timeouts, logging, and any custom middleware slot into the standard `Http::` pipeline.
 - **Spatie Data name mapping** — DTO properties are camelCase but Wafeq's wire format is snake_case; the package transparently maps between them via Spatie Data's `SnakeCaseMapper`.
 - **Localized fields handled** — `{en, ar}` Wafeq payloads hydrate into a dedicated `DualLangData` value object that implements Spatie Data's `Castable` so bare strings, arrays, or existing instances all work.
-- **Typed enum casts** — every enum (`Currency`, `BillStatus`, …) implements `Spatie\LaravelData\Casts\Castable` via `SafeEnumCastable`, so unknown wire values fall back to `null` instead of throwing.
-- **FormRequest layer out of the box** — every mutating endpoint (`create` / `update` / `partialUpdate` / `markAs*` / `taxAuthorityReport` / `bulkSend` / `invoice` / `bill` / `preview*` / `endEarly*`) ships a typed `FormRequest` under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md) that wires Laravel validation directly to the matching `spatie/laravel-data` DTO. Validate → `->toDto()` → hand off to the resource.
+- **Typed enum casts** — enums such as `Currency` and `BillStatus` are used as DTO property types, and `LenientEnumCast` (in `src/Casts`) maps unknown wire values to `null` instead of throwing.
+- **FormRequest layer out of the box** — every mutating endpoint (`create` / `update` / `partialUpdate` / `markAs*` / `taxAuthorityReport` / `bulkSend` / `invoice` / `bill` / `preview*` / `endEarly*`) ships a typed `FormRequest` under [`HWafeq\LaravelWafeq\Requests`](./src/Requests) that wires Laravel validation directly to the matching `spatie/laravel-data` DTO. Validate → `->toDto()` → hand off to the resource.
 - **Eloquent bridge** — pass any `Model` into the `*Model()` overloads (or mix `HasWafeqResource` in and call `$customer->wafeq()->retrieve()`) and the package resolves the Wafeq id and builds the payload for you.
 - **First-class test helpers** — `FakesWafeq` trait + `WafeqFake` helper stub every endpoint without touching the network.
 - **Typed events** — every successful resource call dispatches a `WafeqEvent` subclass you can listen to for syncing, notifications, audit logs, etc.
+- **ZATCA e-invoicing** — `LaravelWafeq::zatca()` covers the Wafeq ZATCA API end to end: B2B clearance, B2C reporting, platform / white-label connected accounts, device onboarding and the Fatoora **simulation** environment. See [ZATCA e-invoicing](#zatca-e-invoicing).
 
 ## Requirements
 
@@ -152,7 +153,7 @@ Every FormRequest exposes:
 - `dto(): class-string<Data>` — the matching `spatie/laravel-data` DTO.
 - `toDto(): Data` — materialises the DTO from the validated payload in one call.
 
-The full catalogue (120 FormRequests across every endpoint that takes a body — `create`, `update`, `partialUpdate`, plus special actions like `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `bill`, `invoice`, `previewCreate`, `endEarly`, `previewEndEarly`) lives under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). All extend [`HWafeq\LaravelWafeq\Requests\WafeqFormRequest`](./docs/requests.md#wafeqformrequest-base-class), which provides the `dto()` / `toDto()` plumbing.
+The full catalogue (120 FormRequests across every endpoint that takes a body — `create`, `update`, `partialUpdate`, plus special actions like `markAsDraft`, `markAsPosted`, `taxAuthorityReport`, `bulkSend`, `bill`, `invoice`, `previewCreate`, `endEarly`, `previewEndEarly`) lives under [`HWafeq\LaravelWafeq\Requests`](./src/Requests). All extend [`HWafeq\LaravelWafeq\Requests\WafeqFormRequest`](./src/Requests/WafeqFormRequest.php), which provides the `dto()` / `toDto()` plumbing.
 
 ### Nested resources
 
@@ -202,7 +203,7 @@ $customer = Customer::find(1);
 $contact = $customer->wafeq()->retrieve();
 ```
 
-The model-side and resource-side APIs share the same id-resolution precedence — see [Eloquent integration](./docs/eloquent-integration.md).
+The model-side and resource-side APIs share the same id-resolution precedence — see [`src/Concerns`](./src/Concerns).
 
 ### Events
 
@@ -221,7 +222,7 @@ Event::listen(ContactCreated::class, function (ContactCreated $event) {
 });
 ```
 
-The full event inventory lives under [`HWafeq\LaravelWafeq\Events`](./docs/events.md) — one event per endpoint × resource (e.g. `ContactCreated`, `ContactListed`, `ContactRetrieved`, `ContactUpdated`, `ContactPartiallyUpdated`, `ContactDestroyed`).
+The full event inventory lives under [`HWafeq\LaravelWafeq\Events`](./src/Events) — one event per endpoint × resource (e.g. `ContactCreated`, `ContactListed`, `ContactRetrieved`, `ContactUpdated`, `ContactPartiallyUpdated`, `ContactDestroyed`).
 
 ### Error handling
 
@@ -236,7 +237,171 @@ Non-2xx responses are converted into typed exceptions under `HWafeq\LaravelWafeq
 | 5xx    | `ServerException`          | Wafeq itself failed — Laravel HTTP client retried before throwing. |
 | other  | `WafeqException`           | Catch-all.                                                         |
 
-See [Error handling](./docs/error-handling.md) for the full hierarchy and `context` payloads.
+See the classes under [`src/Exceptions`](./src/Exceptions) for the full hierarchy and `context` payloads.
+
+### ZATCA e-invoicing
+
+`LaravelWafeq::zatca()` wraps the [Wafeq ZATCA API](https://docs.wafeq.com/zatca/wafeq-public-api-vs-zatca-api) for standalone Saudi e-invoicing (Phase 2). The client is **immutable**: `simulation()`, `production()`, `forBranch()` and `forConnectedAccount()` each return a re-scoped copy, which sends the matching `X-ZATCA-Environment`, `X-ZATCA-Branch` and `X-ZATCA-Connected-Account-Id` headers.
+
+**Simulation first.** The default environment is `simulation` (the Fatoora simulation portal: nothing reaches the tax authority). Switch with `WAFEQ_ZATCA_ENVIRONMENT=production` or `->production()` per call.
+
+```php
+use HWafeq\LaravelWafeq\Facades\LaravelWafeq;
+
+$zatca = LaravelWafeq::zatca(); // simulation by default
+
+// 1. Onboard a device with an OTP from the Fatoora portal (valid for 1 hour).
+$device = $zatca->devices()->register('POS 1', '454230');
+$device->isActive(); // true
+```
+
+**B2C** ([guide](https://docs.wafeq.com/zatca/for-b2c)): simplified invoices and refunds. Add `channels` to deliver the document to the customer in the same request.
+
+```php
+$invoice = $zatca->simplifiedInvoices()->report($document, [
+    'channels'  => [['medium' => 'email', 'data' => [
+        'recipients' => ['to' => ['customer@example.com']],
+        'subject'    => 'Your invoice',
+        'message'    => 'Thank you for your purchase.',
+    ]]],
+    'reference' => 'order-42',
+]);
+
+$invoice->id();          // "zdoc_…"
+$invoice->qrCodeData;    // base64 TLV for the receipt
+$invoice->isReported();  // true
+
+$zatca->simplifiedCreditNotes()->report($refund);
+
+// Asynchronous: signed XML + QR returned immediately (202), reporting queued.
+$zatca->simplifiedInvoices()->issue($document);
+```
+
+**B2B** ([guide](https://docs.wafeq.com/zatca/for-b2b)): standard invoices and credit notes are cleared by ZATCA.
+
+```php
+$zatca->production()->invoices()->report($document);
+$zatca->production()->creditNotes()->report($creditNote);
+```
+
+**Platforms / white label** ([guide](https://docs.wafeq.com/zatca/for-platforms-or-white-label)): onboard each customer as a connected account, then act on their behalf.
+
+```php
+$account = $zatca->connectedAccounts()->create([
+    'name'                    => 'ABCD Inc',
+    'address'                 => 'Anas Bin Malik, Al Malqa',
+    'city'                    => 'Riyadh',
+    'country'                 => 'SA',
+    'business_category'       => 'Manufacturing',
+    'tax_registration_number' => '311111111111113',
+]);
+
+$customer = $zatca->production()->forConnectedAccount($account->id);
+
+$customer->devices()->register('Device 1', $otpFromCustomer);
+$customer->invoices()->report($document); // supplier.identification.value = customer's CRN
+```
+
+**Group VAT / branches**: `$zatca->forBranch('3125678939')` scopes device registration and reporting to a Group VAT member's TIN (or a branch name).
+
+Every document family (`invoices`, `creditNotes`, `debitNotes`, `prepaymentInvoices`, `simplifiedInvoices`, `simplifiedCreditNotes`, `simplifiedDebitNotes`, `prepaymentSimplifiedInvoices`, or `documents(ZatcaDocumentType::…)`) exposes:
+
+| Method | Endpoint |
+|---|---|
+| `report($document, $options)` / `validate(…)` | `POST …/report/`, `…/validate/` |
+| `bulkReport($payloads)` / `bulkValidate(…)` | `POST …/bulk-report/`, `…/bulk-validate/` |
+| `issue(…)` / `bulkIssue(…)` *(simplified only)* | `POST …/issue/`, `…/bulk-issue/` |
+| `list($query)` / `retrieve($id)` | `GET …/`, `…/{id}/` |
+| `updateMetadata($id, $metadata)` | `PATCH …/{id}/` |
+| `download($id, ZatcaDownloadType::Pdf, regenerate: false)` | `GET …/{id}/download/` (PDF/A-3 or XML) |
+| `retry($id)` | `POST …/{id}/retry/` (for `ERROR` documents) |
+| `send($id, $payload)` | `POST …/{id}/send/` |
+
+Also available: `devices()->list() / retrieve() / renew($id, $otp) / revoke($id)`, `connectedAccounts()` CRUD, and `usage()->retrieve()` for remaining document credits (`ZatcaUsageData::isBlocked()`).
+
+ZATCA errors map onto the same exception hierarchy:
+
+| Status | Exception | Notes |
+|---:|---|---|
+| 400 | `ZatcaValidationException` (extends `ValidationException`) | Invalid payload, failed ZATCA rules or a duplicate document. `zatcaErrors()` lists `{code, detail, attr}`. |
+| 403 | `AuthenticationException` | No active device, or a missing / invalid environment. |
+| 424 | `ZatcaSubmissionException` | Wafeq accepted the document but reporting / clearance with ZATCA failed. |
+| — | `ZatcaConfigurationException` | Thrown before sending, e.g. a `zatca_live_` key used with `simulation()`. |
+
+ZATCA requests send no idempotency key and are retried only on connection errors and `http.retry.when` statuses (429 / 503), so a rejected report is never silently resubmitted. Events: `ZatcaDocumentReported`, `ZatcaDocumentIssued`, `ZatcaDeviceRegistered`, `ZatcaConnectedAccountCreated` (under `HWafeq\LaravelWafeq\Events\Zatca`).
+
+#### Typed ZATCA documents
+
+Instead of raw arrays, build documents with the DTOs under `HWafeq\LaravelWafeq\Data\Zatca\Payload`. They serialise to the snake_case wire format with unset optional fields dropped, and every resource method accepts them anywhere it accepts an array.
+
+```php
+use HWafeq\LaravelWafeq\Data\Zatca\Payload\{ZatcaAddressData, ZatcaChannelData, ZatcaDeliveryOptionsData, ZatcaDocumentPayloadData, ZatcaLineItemData, ZatcaPartyIdentificationData, ZatcaSupplierData, ZatcaTaxData};
+use HWafeq\LaravelWafeq\Enums\Currency;
+use HWafeq\LaravelWafeq\Enums\Zatca\ZatcaExemptionReason;
+
+$document = new ZatcaDocumentPayloadData(
+    documentNumber: 'INV-0001',
+    currency: Currency::SAR,
+    supplyDate: '2026-11-06',
+    supplier: new ZatcaSupplierData(
+        name: 'ABCD Inc',
+        address: new ZatcaAddressData(street: 'Anas Bin Malik', building: '3141', city: 'Riyadh', district: 'Al Malqa', postalCode: '13521'),
+        identification: ZatcaPartyIdentificationData::commercialRegistration('1234567890'),
+    ),
+    lineItems: [
+        ZatcaLineItemData::make('iPhone 15 Pro', quantity: 1, unitPrice: 4699),                       // 15% standard VAT
+        ZatcaLineItemData::make('Export service', quantity: 1, unitPrice: 500,
+            tax: ZatcaTaxData::zeroRated(ZatcaExemptionReason::ExportOfServices)),
+    ],
+    taxTotal: 704.85,
+    // customer: defaults to an anonymous B2C buyer
+);
+
+$zatca->simplifiedInvoices()->report($document, new ZatcaDeliveryOptionsData(
+    channels: [ZatcaChannelData::email('customer@example.com', 'Your invoice', 'Thank you!')],
+));
+```
+
+New enums cover the document vocabulary: `ZatcaTaxCategory`, `ZatcaExemptionReason` (with `category()`), `ZatcaCustomerIdentificationType`, `ZatcaSupplierIdentificationType`, `ZatcaDocumentIndicator`, `ZatcaTaxAmountType` and `ZatcaLanguage`. The longer code lists (countries, charge / discount reasons, payment means) live in `Support\Zatca\ZatcaCodeLists`.
+
+#### ZATCA FormRequests
+
+`HWafeq\LaravelWafeq\Requests\Zatca` ships one FormRequest per document family (`ReportZatcaInvoiceRequest`, `ReportZatcaCreditNoteRequest`, … `ReportZatcaPrepaymentSimplifiedInvoiceRequest`). The same body serves `report`, `validate` and `issue`. Rules follow the ZATCA schema for each family: B2B customers need a name and address, notes need `reference_document_number` and a `payment_means` issue reason, non-standard VAT needs an exemption reason, and so on. `toDto()` returns a `ZatcaReportRequestData` that you pass straight to the resource:
+
+```php
+public function store(ReportZatcaSimplifiedInvoiceRequest $request)
+{
+    return LaravelWafeq::zatca()->simplifiedInvoices()->report($request->toDto());
+}
+```
+
+Also available: `SendZatcaDocumentRequest`, `UpdateZatcaDocumentMetadataRequest`, `RegisterZatcaDeviceRequest`, `RenewZatcaDeviceRequest` and `Create` / `Update` / `PartialUpdateZatcaConnectedAccountRequest`.
+
+#### Testing your ZATCA integration
+
+`HWafeq\LaravelWafeq\Testing\ZatcaFake` fakes every ZATCA endpoint offline. Responses echo the request: a reported document keeps its number, reference and metadata, validation computes totals from the line items, and a registered device belongs to the request's branch / connected account.
+
+```php
+use HWafeq\LaravelWafeq\Testing\ZatcaFake;
+
+ZatcaFake::fake([
+    // Optional overrides: path relative to /zatca/, optional HTTP method, * wildcards.
+    'simplified-invoices/report/' => ZatcaFake::validationError('Invalid VAT number.', 'document.supplier'),
+    'POST invoices/*'             => ZatcaFake::submissionError('Clearance rejected.'),
+    'devices/register/'           => ZatcaFake::noActiveDevice(),
+]);
+
+// … exercise your code …
+
+ZatcaFake::assertReported(ZatcaDocumentType::SimplifiedInvoice, fn (array $body) => $body['reference'] === 'order-42');
+ZatcaFake::assertIssued(ZatcaDocumentType::SimplifiedInvoice);
+ZatcaFake::assertNothingReported();
+ZatcaFake::assertDeviceRegistered();
+ZatcaFake::assertSentToEnvironment(ZatcaEnvironment::Simulation);
+ZatcaFake::assertSentForConnectedAccount('ca_123');
+```
+
+Response builders for custom overrides: `ZatcaFake::document()`, `device()`, `connectedAccount()`, `usage()`, `page()`, `rateLimited()` and `serverError()`. Requests to non-ZATCA URLs fall through to your other `Http::fake()` stubs.
 
 ---
 
@@ -248,16 +413,16 @@ The package exposes **44 resources** grouped by what they manage:
 
 | Group | Resources |
 |-------|-----------|
-| **Org** | [organization](./docs/resources/organization.md) |
-| **Contacts & People** | [contacts](./docs/resources/contacts.md), [employees](./docs/resources/employees.md), [beneficiaries](./docs/resources/beneficiaries.md), [branches](./docs/resources/branches.md) |
-| **Sales** | [invoices](./docs/resources/invoices.md), [api-invoices](./docs/resources/api-invoices.md), [simplified-invoices](./docs/resources/simplified-invoices.md), [credit-notes](./docs/resources/credit-notes.md), [api-credit-notes](./docs/resources/api-credit-notes.md), [quotes](./docs/resources/quotes.md) |
-| **Purchases** | [bills](./docs/resources/bills.md), [debit-notes](./docs/resources/debit-notes.md), [purchase-orders](./docs/resources/purchase-orders.md), [expenses](./docs/resources/expenses.md), [payment-requests](./docs/resources/payment-requests.md) |
-| **Payments** | [payments](./docs/resources/payments.md), [payslips](./docs/resources/payslips.md) |
-| **Banking** | [bank-accounts](./docs/resources/bank-accounts.md), [bank-ledger-transactions](./docs/resources/bank-ledger-transactions.md), [bank-statement-transactions](./docs/resources/bank-statement-transactions.md) |
-| **Chart of accounts** | [accounts](./docs/resources/accounts.md), [tax-rates](./docs/resources/tax-rates.md), [cost-centers](./docs/resources/cost-centers.md), [warehouses](./docs/resources/warehouses.md), [projects](./docs/resources/projects.md), [custom-fields](./docs/resources/custom-fields.md), [units-of-measure](./docs/resources/units-of-measure.md), [item-units-of-measure](./docs/resources/item-units-of-measure.md), [items](./docs/resources/items.md) |
-| **Line items** | [invoices-line-items](./docs/resources/invoices-line-items.md), [bills-line-items](./docs/resources/bills-line-items.md), [credit-notes-line-items](./docs/resources/credit-notes-line-items.md), [debit-notes-line-items](./docs/resources/debit-notes-line-items.md), [quotes-line-items](./docs/resources/quotes-line-items.md), [purchase-orders-line-items](./docs/resources/purchase-orders-line-items.md), [simplified-invoices-line-items](./docs/resources/simplified-invoices-line-items.md), [journal-line-items](./docs/resources/journal-line-items.md), [payslips-pay-items](./docs/resources/payslips-pay-items.md) |
-| **Accounting** | [manual-journals](./docs/resources/manual-journals.md), [amortizations](./docs/resources/amortizations.md), [revenue-recognitions](./docs/resources/revenue-recognitions.md) |
-| **Files & Reports** | [files](./docs/resources/files.md), [reports](./docs/resources/reports.md) |
+| **Org** | `organization()` |
+| **Contacts & People** | `contacts()`, `employees()`, `beneficiaries()`, `branches()` |
+| **Sales** | `invoices()`, `apiInvoices()`, `simplifiedInvoices()`, `creditNotes()`, `apiCreditNotes()`, `quotes()` |
+| **Purchases** | `bills()`, `debitNotes()`, `purchaseOrders()`, `expenses()`, `paymentRequests()` |
+| **Payments** | `payments()`, `payslips()` |
+| **Banking** | `bankAccounts()`, `bankLedgerTransactions()`, `bankStatementTransactions()` |
+| **Chart of accounts** | `accounts()`, `taxRates()`, `costCenters()`, `warehouses()`, `projects()`, `customFields()`, `unitsOfMeasure()`, `itemUnitsOfMeasure()`, `items()` |
+| **Line items** | `invoicesLineItems()`, `billsLineItems()`, `creditNotesLineItems()`, `debitNotesLineItems()`, `quotesLineItems()`, `purchaseOrdersLineItems()`, `simplifiedInvoicesLineItems()`, `journalLineItems()`, `payslipsPayItems()` |
+| **Accounting** | `manualJournals()`, `amortizations()`, `revenueRecognitions()` |
+| **Files & Reports** | `files()`, `reports()` |
 
 Every resource is exposed via a dedicated interface under `HWafeq\LaravelWafeq\Contracts\*ResourceContract`, so you can type-hint the resource you actually use:
 
@@ -277,7 +442,7 @@ class BillingService
 
 ### Shared DTOs
 
-Cross-resource types live under [`HWafeq\LaravelWafeq\Data\Shared`](./docs/dtos.md#shared-dtos):
+Cross-resource types live under [`HWafeq\LaravelWafeq\Data\Shared`](./src/Data/Shared):
 
 | Shared DTO | Used by |
 |------------|---------|
@@ -296,7 +461,7 @@ Cross-resource types live under [`HWafeq\LaravelWafeq\Data\Shared`](./docs/dtos.
 
 ### Enums
 
-The package ships 19 typed enums in [`HWafeq\LaravelWafeq\Enums`](./docs/enums.md). All Wafeq-facing enums are sourced directly from the official `wafeq-docs` and implement Spatie Data's `Castable` so unknown wire values fall back to `null` instead of throwing.
+The package ships typed enums in [`HWafeq\LaravelWafeq\Enums`](./src/Enums), sourced from the official `wafeq-docs`. Wafeq enums are wired into DTOs through `LenientEnumCast`, so unknown wire values fall back to `null` instead of throwing.
 
 ```php
 use HWafeq\LaravelWafeq\Enums\Currency;
@@ -347,13 +512,13 @@ $default = $client->defaultCurrency();   // returns the resolved Currency (or nu
 
 ### Idempotency
 
-Every mutating call (`create`, `update`, `partialUpdate`, `destroy`, plus resource-specific extras like `markAsPosted`, `invoice`, `bill`, `taxAuthorityReport`, `bulkSend`, `previewCreate`, etc.) automatically attaches a UUID `X-Wafeq-Idempotency-Key` header. Retries are safe — see [Idempotency](./docs/idempotency.md).
+Every mutating call (`create`, `update`, `partialUpdate`, `destroy`, plus resource-specific extras like `markAsPosted`, `invoice`, `bill`, `taxAuthorityReport`, `bulkSend`, `previewCreate`, etc.) automatically attaches a UUID `X-Wafeq-Idempotency-Key` header. Retries are safe.
 
 The header name is configurable via the `idempotency_header` config key.
 
 ### FormRequest layer
 
-Every endpoint that accepts a request body ships a typed Laravel FormRequest under [`HWafeq\LaravelWafeq\Requests`](./docs/requests.md). The validation rules are derived directly from the matching `wafeq-docs/<resource>_<action>.md` OpenAPI schema, so the package and the docs stay in lock-step:
+Every endpoint that accepts a request body ships a typed Laravel FormRequest under [`HWafeq\LaravelWafeq\Requests`](./src/Requests). The validation rules are derived directly from the matching `wafeq-docs/<resource>_<action>.md` OpenAPI schema, so the package and the docs stay in lock-step:
 
 | Endpoint family | FormRequests |
 |-----------------|--------------|
@@ -364,7 +529,7 @@ Every endpoint that accepts a request body ships a typed Laravel FormRequest und
 
 **120 FormRequests total** (one per endpoint in `wafeq-docs/` that takes a request body), plus the `WafeqFormRequest` base class.
 
-All 121 requests extend a single base class:
+All 120 FormRequests extend a single base class:
 
 ```php
 namespace HWafeq\LaravelWafeq\Requests;
@@ -391,7 +556,7 @@ abstract class WafeqFormRequest extends \Illuminate\Foundation\Http\FormRequest
 
 #### JSON Schema → Laravel rules
 
-The mapping rules are consistent across every FormRequest (see [`requests.md`](./docs/requests.md#json-schema--laravel-rules-mapping) for the full table):
+The mapping rules are consistent across every FormRequest:
 
 | OpenAPI schema                                      | Laravel rule                              |
 |-----------------------------------------------------|-------------------------------------------|
@@ -437,14 +602,12 @@ it('creates an invoice', function () {
 });
 ```
 
-`FakesWafeq` also exposes `fakeWafeqPage()` (paginated list bodies), `fakeNotFound()`, `fakeValidationError()`, `fakeRateLimit()`, `fakeServerError()`, and `fakeAuthError()` for every HTTP failure the API returns. See [Testing](./docs/testing.md) for the full surface.
+`FakesWafeq` also exposes `fakeWafeqPage()` (paginated list bodies), `fakeNotFound()`, `fakeValidationError()`, `fakeRateLimit()`, `fakeServerError()`, and `fakeAuthError()` for every HTTP failure the API returns. See [`FakesWafeq`](./tests/Pests/Concerns/FakesWafeq.php) for the full surface.
 
 Run the test suite yourself:
 
 ```bash
-./vendor/bin/pest                    # 797 passed (2075 assertions)
-./vendor/bin/phpstan analyse        # no errors
-./vendor/bin/pint                   # clean
+./vendor/bin/pest
 ```
 
 ---
@@ -478,31 +641,40 @@ return [
     ],
 
     'idempotency_header' => env('WAFEQ_IDEMPOTENCY_HEADER', 'X-Wafeq-Idempotency-Key'),
+
+    // ZATCA e-invoicing — see "ZATCA e-invoicing" above.
+    'zatca' => [
+        'environment'       => env('WAFEQ_ZATCA_ENVIRONMENT', 'simulation'), // or "production"
+        'api_key'           => env('WAFEQ_ZATCA_API_KEY'),                   // optional zatca_live_… / zatca_sim_… key; falls back to api_key
+        'base_url'          => env('WAFEQ_ZATCA_BASE_URL', 'https://api.wafeq.com/v1'),
+        'branch'            => env('WAFEQ_ZATCA_BRANCH'),                    // default X-ZATCA-Branch
+        'connected_account' => env('WAFEQ_ZATCA_CONNECTED_ACCOUNT'),         // default X-ZATCA-Connected-Account-Id
+    ],
 ];
 ```
 
-At minimum, set `WAFEQ_API_KEY` (and `WAFEQ_ENVIRONMENT=production` when you're ready for live traffic). See [Configuration](./docs/configuration.md) for the full reference.
+At minimum, set `WAFEQ_API_KEY` (and `WAFEQ_ENVIRONMENT=production` when you're ready for live traffic). See [`config/wafeq.php`](./config/wafeq.php) for the full reference.
 
 ---
 
 ## Documentation
 
-The package ships comprehensive documentation under [`docs/`](./docs/index.md):
+Documentation lives in this README and in the source and spec folders linked below:
 
-| Page | What it covers |
-|------|----------------|
-| [Getting started](./docs/getting-started.md) | Install, env, first call. |
-| [Architecture](./docs/architecture.md) | `Connector → Client → Resource → DTO` pipeline; `HandlesResponses`, `InteractsWithModels`, `HoldsWafeqModel` traits. |
-| [Configuration](./docs/configuration.md) | Every config key and env var explained. |
-| [Idempotency](./docs/idempotency.md) | How the package protects mutating calls. |
-| [Error handling](./docs/error-handling.md) | Exception hierarchy and status-code mapping. |
-| [Eloquent integration](./docs/eloquent-integration.md) | Model-aware overloads, payload building, id resolution. |
-| [Events](./docs/events.md) | Typed Laravel events dispatched from every Resource method. |
-| [Enums](./docs/enums.md) | Every typed enum the package ships. |
-| [DTOs](./docs/dtos.md) | Data Transfer Object conventions, `extra` catch-all, paginated envelopes, shared DTOs. |
-| [Requests](./docs/requests.md) | The 120 `FormRequest` classes — JSON Schema → validation rules → typed DTO conversion. |
-| [Testing](./docs/testing.md) | The `FakesWafeq` trait and `WafeqFake` helper. |
-| [Resources](./docs/resources/organization.md) | One page per resource family with curl-equivalent examples. |
+| Topic | Where to look |
+|-------|---------------|
+| Installation and configuration | [Installation](#installation) and [`config/wafeq.php`](./config/wafeq.php) |
+| Architecture | [`src/Connector.php`](./src/Connector.php), [`src/Client.php`](./src/Client.php), [`src/Concerns`](./src/Concerns) |
+| Idempotency | [Features](#idempotency) |
+| Error handling | [Error handling](#error-handling) and [`src/Exceptions`](./src/Exceptions) |
+| Eloquent integration | [Eloquent bridge](#eloquent-bridge) and [`src/Concerns`](./src/Concerns) |
+| Events | [Events](#events) and [`src/Events`](./src/Events) |
+| Enums | [`src/Enums`](./src/Enums) |
+| DTOs | [`src/Data`](./src/Data) and [`src/Data/Shared`](./src/Data/Shared) |
+| FormRequests | [FormRequest layer](#formrequest-layer) and [`src/Requests`](./src/Requests) |
+| Testing | [Testing](#testing) and [`FakesWafeq`](./tests/Pests/Concerns/FakesWafeq.php) |
+| Wafeq API specs | [`wafeq-docs/`](./wafeq-docs) |
+| LLM index | [`llms.txt`](./llms.txt) |
 
 ---
 
@@ -512,7 +684,7 @@ Please see [CHANGELOG.md](CHANGELOG.md) for more information on what has changed
 
 ## Contributing
 
-Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome. Please open an issue or a pull request on GitHub.
 
 ## Security Vulnerabilities
 

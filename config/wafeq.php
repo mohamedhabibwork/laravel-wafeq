@@ -81,4 +81,35 @@ return [
 
     'currency' => env('WAFEQ_CURRENCY'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | ZATCA e-invoicing
+    |--------------------------------------------------------------------------
+    |
+    | Settings for the Wafeq ZATCA API (`LaravelWafeq::zatca()`).
+    |
+    | - environment: "simulation" (Fatoora simulation portal, nothing is
+    |   submitted to the tax authority) or "production". Sent as the
+    |   `X-ZATCA-Environment` header.
+    | - api_key: optional dedicated ZATCA key (`zatca_live_…` / `zatca_sim_…`).
+    |   Falls back to `api_key` above. A dedicated key must match the
+    |   configured environment.
+    | - base_url: the ZATCA API is only served from the production host;
+    |   the environment header, not the URL, selects simulation.
+    | - branch: default `X-ZATCA-Branch` (a Group VAT member's TIN, or a
+    |   branch name).
+    | - connected_account: default `X-ZATCA-Connected-Account-Id` for
+    |   platform / white-label integrations. Usually set per call with
+    |   `zatca()->forConnectedAccount($id)` instead.
+    |
+    */
+
+    'zatca' => [
+        'environment' => env('WAFEQ_ZATCA_ENVIRONMENT', 'simulation'),
+        'api_key' => env('WAFEQ_ZATCA_API_KEY'),
+        'base_url' => env('WAFEQ_ZATCA_BASE_URL', 'https://api.wafeq.com/v1'),
+        'branch' => env('WAFEQ_ZATCA_BRANCH'),
+        'connected_account' => env('WAFEQ_ZATCA_CONNECTED_ACCOUNT'),
+    ],
+
 ];

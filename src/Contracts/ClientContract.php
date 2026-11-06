@@ -49,11 +49,13 @@
  * @method \HWafeq\LaravelWafeq\Contracts\TaxRatesResourceContract taxRates()
  * @method \HWafeq\LaravelWafeq\Contracts\UnitsOfMeasureResourceContract unitsOfMeasure()
  * @method \HWafeq\LaravelWafeq\Contracts\WarehousesResourceContract warehouses()
+ * @method \HWafeq\LaravelWafeq\Contracts\Zatca\ZatcaClientContract zatca()
  */
 
 namespace HWafeq\LaravelWafeq\Contracts;
 
 use HWafeq\LaravelWafeq\Connector;
+use HWafeq\LaravelWafeq\Contracts\Zatca\ZatcaClientContract;
 use HWafeq\LaravelWafeq\Enums\Currency;
 
 /**
@@ -164,4 +166,9 @@ interface ClientContract
     public function unitsOfMeasure(): UnitsOfMeasureResourceContract;
 
     public function warehouses(): WarehousesResourceContract;
+
+    /**
+     * The Wafeq ZATCA e-invoicing API (B2B, B2C, platforms / white label).
+     */
+    public function zatca(): ZatcaClientContract;
 }
