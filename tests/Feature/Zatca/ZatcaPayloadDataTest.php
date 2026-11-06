@@ -101,7 +101,8 @@ it('sends an anonymous B2C customer as a JSON object', function () {
         lineItems: [ZatcaLineItemData::make('Coffee', quantity: 1, unitPrice: 10)],
     );
 
-    expect(json_encode($document->toPayload()))->toContain('"customer":{}');
+    expect(json_encode($document->toPayload()))->toContain('"customer":{}')
+        ->and(json_encode(ZatcaReportRequestData::for($document)->toPayload()))->toContain('"customer":{}');
 });
 
 it('builds tax helpers for every category', function () {
