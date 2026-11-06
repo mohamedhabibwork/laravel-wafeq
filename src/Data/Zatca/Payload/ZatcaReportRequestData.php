@@ -42,4 +42,15 @@ class ZatcaReportRequestData extends ZatcaPayloadData
             template: $options?->template,
         );
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toPayload(): array
+    {
+        $payload = parent::toPayload();
+        $payload['document'] = $this->document->toPayload();
+
+        return $payload;
+    }
 }
