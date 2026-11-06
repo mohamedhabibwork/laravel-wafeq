@@ -6,6 +6,7 @@ use HWafeq\LaravelWafeq\Contracts\AccountsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\ClientContract;
 use HWafeq\LaravelWafeq\Contracts\ContactsResourceContract;
 use HWafeq\LaravelWafeq\Contracts\InvoicesResourceContract;
+use HWafeq\LaravelWafeq\Contracts\Zatca\ZatcaClientContract;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static AccountsResourceContract accounts()
  * @method static InvoicesResourceContract invoices()
  * @method static ContactsResourceContract contacts()
+ * @method static ZatcaClientContract zatca()
  */
 /**
  * LaravelWafeq Class.

@@ -49,6 +49,7 @@
  * @method \HWafeq\LaravelWafeq\Contracts\TaxRatesResourceContract taxRates()
  * @method \HWafeq\LaravelWafeq\Contracts\UnitsOfMeasureResourceContract unitsOfMeasure()
  * @method \HWafeq\LaravelWafeq\Contracts\WarehousesResourceContract warehouses()
+ * @method \HWafeq\LaravelWafeq\Contracts\Zatca\ZatcaClientContract zatca()
  */
 
 namespace HWafeq\LaravelWafeq;
@@ -99,6 +100,7 @@ use HWafeq\LaravelWafeq\Contracts\SimplifiedInvoicesResourceContract;
 use HWafeq\LaravelWafeq\Contracts\TaxRatesResourceContract;
 use HWafeq\LaravelWafeq\Contracts\UnitsOfMeasureResourceContract;
 use HWafeq\LaravelWafeq\Contracts\WarehousesResourceContract;
+use HWafeq\LaravelWafeq\Contracts\Zatca\ZatcaClientContract;
 use HWafeq\LaravelWafeq\Enums\Currency;
 use HWafeq\LaravelWafeq\Resources\AccountsResource;
 use HWafeq\LaravelWafeq\Resources\AmortizationsResource;
@@ -432,5 +434,13 @@ class Client implements ClientContract
     public function warehouses(): WarehousesResourceContract
     {
         return new WarehousesResource($this->connector->make());
+    }
+
+    /**
+     * The Wafeq ZATCA e-invoicing API, scoped by the `wafeq.zatca` config.
+     */
+    public function zatca(): ZatcaClientContract
+    {
+        return new ZatcaClient($this->connector);
     }
 }
